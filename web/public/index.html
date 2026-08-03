@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Outrun — neon synthwave strokes, live in the browser</title>
+<meta name="description" content="The Outrun FFGL plugin's stroke pipeline running live in WebGL2: trace your webcam's outlines in neon, or generate synthwave grids, tunnels and circuits.">
+<style>
+:root {
+	--navy: #0e2942; --navy-2: #0a1f33; --paper: #fafaf8;
+	--accent: #7fa8ce; --ink: #e8edf3; --hair: rgba(127, 168, 206, 0.25);
+}
+* { box-sizing: border-box; margin: 0; }
+body {
+	background: var(--navy-2); color: var(--ink);
+	font: 15px/1.5 -apple-system, "Segoe UI", system-ui, sans-serif;
+	height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+}
+header {
+	display: flex; align-items: baseline; gap: 1rem;
+	padding: 0.9rem 1.4rem; border-bottom: 1px solid var(--hair);
+}
+header h1 { font-size: 1.05rem; letter-spacing: 0.16em; text-transform: uppercase; }
+header .eyebrow {
+	font-family: ui-monospace, monospace; font-size: 0.72rem;
+	color: var(--accent); letter-spacing: 0.08em;
+}
+header a { color: var(--accent); margin-left: auto; font-size: 0.85rem; text-decoration: none; }
+header a:hover { text-decoration: underline; }
+main { display: flex; flex: 1; min-height: 0; }
+#stage { flex: 1; position: relative; background: black; min-width: 0; }
+#view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#fail {
+	display: none; position: absolute; inset: auto 1rem 1rem 1rem;
+	background: var(--navy); border: 1px solid var(--hair);
+	padding: 0.8rem 1rem; font-family: ui-monospace, monospace; font-size: 0.8rem;
+}
+aside {
+	width: 300px; flex-shrink: 0; overflow-y: auto;
+	border-left: 1px solid var(--hair); padding: 1rem 1.2rem 2rem;
+	background: var(--navy);
+}
+fieldset { border: none; padding: 0.7rem 0 0.2rem; }
+legend {
+	font-family: ui-monospace, monospace; font-size: 0.7rem;
+	letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent);
+	padding: 0;
+}
+label { display: block; font-size: 0.8rem; margin: 0.45rem 0 0.1rem; color: #b8c6d4; }
+select, input[type="range"] { width: 100%; accent-color: var(--accent); }
+select {
+	background: var(--navy-2); color: var(--ink);
+	border: 1px solid var(--hair); padding: 0.3rem 0.4rem; border-radius: 4px;
+}
+.row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.45rem; }
+.row label { margin: 0; flex: 1; }
+.presets { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+.presets button {
+	background: transparent; border: 1px solid var(--hair); color: var(--ink);
+	font-size: 0.75rem; padding: 0.3rem 0.55rem; border-radius: 4px; cursor: pointer;
+}
+.presets button:hover { border-color: var(--accent); color: var(--accent); }
+footer {
+	padding: 0.6rem 1.4rem; border-top: 1px solid var(--hair);
+	font-size: 0.75rem; color: #8fa3b5;
+}
+footer a { color: var(--accent); }
+@media (max-width: 760px) {
+	body { height: auto; overflow: auto; }
+	main { flex-direction: column; }
+	#stage { min-height: 52vh; }
+	aside { width: auto; border-left: none; border-top: 1px solid var(--hair); overflow: visible; }
+}
+</style>
+</head>
+<body>
+<header>
+	<span class="eyebrow">stoatworks labs</span>
+	<h1>Outrun</h1>
+	<a href="https://github.com/stoatworks-labs/outrun">Get the Resolume plugin →</a>
+</header>
+<main>
+	<div id="stage">
+		<canvas id="view"></canvas>
+		<div id="fail"></div>
+	</div>
+	<aside>
+		<fieldset>
+			<legend>Engine</legend>
+			<select id="engine" data-key="engine">
+				<option value="0">A: Trace — outline the picture</option>
+				<option value="1">B: Paths — generate geometry</option>
+			</select>
+			<div class="presets">
+				<button id="preset-grid">Grid</button>
+				<button id="preset-sign">Neon Sign</button>
+				<button id="preset-echo">Ghost Echo</button>
+				<button id="preset-scan">Scan</button>
+				<button id="preset-tunnel">Tunnel</button>
+				<button id="preset-scope">Scope</button>
+			</div>
+		</fieldset>
+
+		<fieldset id="panel-a">
+			<legend>Engine A — Trace</legend>
+			<div class="row">
+				<label for="webcam">Use my webcam</label>
+				<input type="checkbox" id="webcam">
+			</div>
+			<label for="sensitivity">Sensitivity</label>
+			<input type="range" id="sensitivity" data-key="sensitivity" min="0" max="1" step="0.01" value="0.6">
+		</fieldset>
+
+		<fieldset id="panel-b" style="display:none">
+			<legend>Engine B — Paths</legend>
+			<label for="path">Path</label>
+			<select id="path" data-key="path">
+				<option value="0">Grid</option>
+				<option value="1">Lissajous</option>
+				<option value="2">Hex</option>
+				<option value="3">Circuit</option>
+				<option value="4">Skyline</option>
+				<option value="5">Rings</option>
+				<option value="6">Star</option>
+				<option value="7">Waveform</option>
+			</select>
+			<label for="pathdetail">Path detail</label>
+			<input type="range" id="pathdetail" data-key="pathDetail" min="0" max="1" step="0.01" value="0.4">
+		</fieldset>
+
+		<fieldset>
+			<legend>Stroke</legend>
+			<label for="width">Width</label>
+			<input type="range" id="width" data-key="width" min="0" max="1" step="0.01" value="0.35">
+			<label for="core">Core</label>
+			<input type="range" id="core" data-key="core" min="0" max="1" step="0.01" value="0.5">
+		</fieldset>
+
+		<fieldset>
+			<legend>Breakaway</legend>
+			<select id="breakmode" data-key="breakMode">
+				<option value="0">None</option>
+				<option value="1">Echo</option>
+				<option value="2">Angular</option>
+				<option value="3">Scan</option>
+				<option value="4">Flow</option>
+				<option value="5">Rays</option>
+			</select>
+			<label for="breakamount">Amount</label>
+			<input type="range" id="breakamount" data-key="breakAmount" min="0" max="1" step="0.01" value="0">
+			<label for="breakspread">Spread</label>
+			<input type="range" id="breakspread" data-key="breakSpread" min="0" max="1" step="0.01" value="0.4">
+			<label for="breakhue">Hue shift</label>
+			<input type="range" id="breakhue" data-key="breakHue" min="0" max="1" step="0.01" value="0.15">
+		</fieldset>
+
+		<fieldset>
+			<legend>Colour</legend>
+			<label for="palette">Palette</label>
+			<select id="palette" data-key="palette">
+				<option value="2" selected>Miami</option>
+				<option value="3">Outrun</option>
+				<option value="4">Sunset Drive</option>
+				<option value="5">Laser</option>
+				<option value="6">Vice</option>
+				<option value="7">Chrome</option>
+				<option value="8">Ultraviolet</option>
+				<option value="9">Neon Noir</option>
+				<option value="10">Acid</option>
+				<option value="11">Sodium</option>
+				<option value="12">Cyberdeck</option>
+				<option value="13">Hologram</option>
+				<option value="14">Blood Neon</option>
+				<option value="15">Mono</option>
+			</select>
+			<label for="colourmode">Colour from</label>
+			<select id="colourmode" data-key="colourMode">
+				<option value="0">Palette</option>
+				<option value="1">The picture</option>
+				<option value="2">Picture × palette</option>
+			</select>
+			<label for="spreadc">Palette spread</label>
+			<input type="range" id="spreadc" data-key="spread" min="0" max="1" step="0.01" value="0.4">
+		</fieldset>
+
+		<fieldset>
+			<legend>Motion &amp; audio</legend>
+			<label for="speed">Speed</label>
+			<input type="range" id="speed" data-key="speed" min="0" max="1" step="0.01" value="0.25">
+			<div class="row">
+				<label for="mic">Use my microphone</label>
+				<input type="checkbox" id="mic">
+			</div>
+			<label for="audiolevel">Audio on strokes</label>
+			<input type="range" id="audiolevel" data-key="audioLevel" min="0" max="1" step="0.01" value="0">
+			<label for="audiobreak">Audio on breakaway</label>
+			<input type="range" id="audiobreak" data-key="audioBreak" min="0" max="1" step="0.01" value="0">
+		</fieldset>
+
+		<fieldset>
+			<legend>Output</legend>
+			<label for="glowamt">Glow</label>
+			<input type="range" id="glowamt" data-key="glow" min="0" max="1" step="0.01" value="0.55">
+			<label for="glowsize">Glow size</label>
+			<input type="range" id="glowsize" data-key="glowSize" min="0" max="1" step="0.01" value="0.4">
+			<label for="background">Background</label>
+			<select id="background" data-key="background">
+				<option value="0">Black</option>
+				<option value="1">The picture</option>
+				<option value="2">Dimmed picture</option>
+				<option value="4">Edge mask (tuning view)</option>
+			</select>
+		</fieldset>
+	</aside>
+</main>
+<footer>
+	This is the real algorithm — the same GLSL the
+	<a href="https://github.com/stoatworks-labs/outrun">Outrun FFGL plugin</a> runs in
+	Resolume, ported to WebGL2. Click once to start the sound. Nothing you type,
+	film or play leaves this page.
+</footer>
+<script type="module" src="app.js"></script>
+</body>
+</html>

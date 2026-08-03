@@ -1,0 +1,12 @@
+// Outrun web demo — static-assets-only Worker.
+// Deploy from web/: cf-run npx wrangler deploy  (see reference_cloudflare_access)
+{
+  "name": "outrun",
+  "compatibility_date": "2026-08-04",
+  "assets": {
+    "directory": "./public"
+  },
+  "routes": [
+    { "pattern": "outrun.stoatworks-labs.com", "custom_domain": true }
+  ]
+}
