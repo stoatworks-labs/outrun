@@ -29,6 +29,7 @@ std::string glStringOrUnknown( GLenum name )
 	return value ? reinterpret_cast< const char* >( value ) : "unknown";
 }
 
+const char* const kEngineNames[]     = { "A: Trace", "B: Paths" };
 const char* const kSourceNames[]     = { "Luma", "Alpha", "Chroma", "Luma or Alpha" };
 const char* const kTraceNames[]      = { "Spiral", "Angle", "Linear", "Radial" };
 const char* const kBreakNames[]      = { "None", "Echo", "Angular", "Scan", "Flow", "Rays" };
@@ -36,6 +37,7 @@ const char* const kColourModeNames[] = { "Palette", "Clip", "Clip x Palette" };
 const char* const kSyncNames[]       = { "Free", "Beat", "Bar", "Manual" };
 const char* const kBackgroundNames[] = { "Black", "Source", "Dimmed Source", "Transparent", "Edges" };
 
+constexpr int kEngineCount     = 2;
 constexpr int kSourceCount     = 4;
 constexpr int kTraceCount      = 4;
 constexpr int kBreakCount      = 6;
@@ -62,11 +64,10 @@ double wallSeconds()
 }
 } // namespace
 
-OutrunPlugin::OutrunPlugin( bool overInput ) :
-	overInput( overInput )
+OutrunPlugin::OutrunPlugin()
 {
-	SetMinInputs( overInput ? 1 : 0 );
-	SetMaxInputs( overInput ? 1 : 0 );
+	SetMinInputs( 1 );
+	SetMaxInputs( 1 );
 
 	//The host drives the animation where it can, so that rendering the same
 	//frame twice gives the same picture twice and an export matches the
@@ -77,10 +78,11 @@ OutrunPlugin::OutrunPlugin( bool overInput ) :
 	// Defaults. SetParamInfof reads each one back out of GetFloatParameter,
 	// so these assignments are what the host is told the defaults are.
 	//
-	// They add up to: the source opens on the Miami perspective grid rolling
-	// toward the viewer; the effect opens on the clip's outline as a pink
-	// neon tube. Both are recognisable before a single slider moves.
+	// They add up to: Engine A tracing the clip's outline as a pink neon
+	// tube -- recognisable before a single slider moves -- with Engine B one
+	// dropdown away, opening on the Miami perspective grid.
 	//---------------------------------------------------------------------
+	params[ PT_ENGINE ]      = 0.0f;//Engine A: trace whatever is on the layer
 	params[ PT_SOURCE ]      = 3.0f;//Luma or Alpha -- right for artwork either way
 	params[ PT_SENSITIVITY ] = 0.60f;
 	params[ PT_SOFTNESS ]    = 0.35f;
@@ -135,10 +137,13 @@ OutrunPlugin::OutrunPlugin( bool overInput ) :
 	// FF_TYPE_STANDARD default into 0..1 *before* a range can be attached
 	// (SDK b1afaf9). The conversions live in Controls.cpp.
 	//
-	// Both variants declare everything, including the other's group, so a
-	// composition can move between the source and the effect without the
-	// parameter list shifting underneath it.
+	// Both engines declare everything; the inactive engine's group is
+	// simply ignored, so switching engines never shifts the parameter list.
 	//---------------------------------------------------------------------
+	SetOptionParamInfo( PT_ENGINE, "Engine", kEngineCount, params[ PT_ENGINE ] );
+	for( int i = 0; i < kEngineCount; ++i )
+		SetParamElementInfo( PT_ENGINE, i, kEngineNames[ i ], static_cast< float >( i ) );
+
 	SetOptionParamInfo( PT_SOURCE, "Detect On", kSourceCount, params[ PT_SOURCE ] );
 	for( int i = 0; i < kSourceCount; ++i )
 		SetParamElementInfo( PT_SOURCE, i, kSourceNames[ i ], static_cast< float >( i ) );
@@ -147,6 +152,12 @@ OutrunPlugin::OutrunPlugin( bool overInput ) :
 	SetParamInfof( PT_SOFTNESS, "Softness", FF_TYPE_STANDARD );
 	SetParamInfof( PT_DETAIL, "Detail", FF_TYPE_STANDARD );
 	SetParamInfof( PT_STABILITY, "Stability", FF_TYPE_STANDARD );
+
+	SetOptionParamInfo( PT_TRACE, "Trace", kTraceCount, params[ PT_TRACE ] );
+	for( int i = 0; i < kTraceCount; ++i )
+		SetParamElementInfo( PT_TRACE, i, kTraceNames[ i ], static_cast< float >( i ) );
+
+	SetParamInfof( PT_TRACE_ANGLE, "Direction", FF_TYPE_STANDARD );
 
 	SetOptionParamInfo( PT_PATH, "Path", static_cast< int >( Path::Count ), params[ PT_PATH ] );
 	for( int i = 0; i < static_cast< int >( Path::Count ); ++i )
@@ -158,12 +169,6 @@ OutrunPlugin::OutrunPlugin( bool overInput ) :
 
 	SetParamInfof( PT_WIDTH, "Width", FF_TYPE_STANDARD );
 	SetParamInfof( PT_CORE, "Core", FF_TYPE_STANDARD );
-
-	SetOptionParamInfo( PT_TRACE, "Trace", kTraceCount, params[ PT_TRACE ] );
-	for( int i = 0; i < kTraceCount; ++i )
-		SetParamElementInfo( PT_TRACE, i, kTraceNames[ i ], static_cast< float >( i ) );
-
-	SetParamInfof( PT_TRACE_ANGLE, "Direction", FF_TYPE_STANDARD );
 
 	SetOptionParamInfo( PT_BREAK_MODE, "Break Mode", kBreakCount, params[ PT_BREAK_MODE ] );
 	for( int i = 0; i < kBreakCount; ++i )
@@ -240,11 +245,12 @@ OutrunPlugin::OutrunPlugin( bool overInput ) :
 	// Groups. SetParamGroup collapses *runs* of consecutive same-group ids,
 	// which is why the ids in Controls.h have to stay in this order.
 	//---------------------------------------------------------------------
-	for( unsigned int id = PT_SOURCE; id <= PT_STABILITY; ++id )
-		SetParamGroup( id, "Edge" );
+	SetParamGroup( PT_ENGINE, "Engine" );
+	for( unsigned int id = PT_SOURCE; id <= PT_TRACE_ANGLE; ++id )
+		SetParamGroup( id, "Engine A - Trace" );
 	for( unsigned int id = PT_PATH; id <= PT_HORIZON; ++id )
-		SetParamGroup( id, "Path" );
-	for( unsigned int id = PT_WIDTH; id <= PT_TRACE_ANGLE; ++id )
+		SetParamGroup( id, "Engine B - Paths" );
+	for( unsigned int id = PT_WIDTH; id <= PT_CORE; ++id )
 		SetParamGroup( id, "Stroke" );
 	for( unsigned int id = PT_BREAK_MODE; id <= PT_BREAK_HUE; ++id )
 		SetParamGroup( id, "Breakaway" );
@@ -258,7 +264,7 @@ OutrunPlugin::OutrunPlugin( bool overInput ) :
 		SetParamGroup( id, "Output" );
 	SetParamGroup( PT_PRESET, "Preset" );
 
-	FFGLLog::LogToHost( overInput ? "Created Outrun Trace effect" : "Created Outrun source" );
+	FFGLLog::LogToHost( "Created Outrun effect" );
 
 	diag::init();
 }
@@ -297,35 +303,30 @@ FFResult OutrunPlugin::InitGL( const FFGLViewportStruct* vp )
 	//which machine reported what is most of the diagnosis.
 	diag::info( std::string( "GL vendor=" ) + glStringOrUnknown( GL_VENDOR )
 	            + " renderer=" + glStringOrUnknown( GL_RENDERER )
-	            + " version=" + glStringOrUnknown( GL_VERSION )
-	            + ( overInput ? " (effect)" : " (source)" ) );
+	            + " version=" + glStringOrUnknown( GL_VERSION ) );
 
-	//Assembled rather than written out: the stroke and composite passes are
-	//one source string each, specialised per variant by an injected #define.
-	//Held in locals so the pointers handed to Compile outlive the call.
-	const std::string strokeSource    = StrokeShaderSource( overInput );
-	const std::string compositeSource = CompositeShaderSource( overInput );
+	//The stroke pass is assembled rather than written out -- both engines in
+	//one program. Held in a local so the pointer handed to Compile outlives
+	//the call.
+	const std::string strokeSource = StrokeShaderSource();
 
 	struct Stage
 	{
 		FFGLShader* shader;
 		const char* fragment;
 		const char* name;
-		bool wanted;
 	};
 	const Stage stages[] = {
-		{ &copyShader, kCopyShader, "copy", overInput },
-		{ &edgeShader, kEdgeShader, "edge", overInput },
-		{ &stabiliseShader, kStabiliseShader, "stabilise", overInput },
-		{ &strokeShader, strokeSource.c_str(), "stroke", true },
-		{ &blurShader, kBlurShader, "blur", true },
-		{ &compositeShader, compositeSource.c_str(), "composite", true },
+		{ &copyShader, kCopyShader, "copy" },
+		{ &edgeShader, kEdgeShader, "edge" },
+		{ &stabiliseShader, kStabiliseShader, "stabilise" },
+		{ &strokeShader, strokeSource.c_str(), "stroke" },
+		{ &blurShader, kBlurShader, "blur" },
+		{ &compositeShader, kCompositeShader, "composite" },
 	};
 
 	for( const Stage& stage : stages )
 	{
-		if( !stage.wanted )
-			continue;
 		if( stage.shader->Compile( kVertexShader, stage.fragment ) )
 			continue;
 
@@ -487,19 +488,17 @@ void OutrunPlugin::Render( int width, int height, GLuint inputTexture, float max
 	const int glowWidth  = std::max( 16, width / 4 );
 	const int glowHeight = std::max( 16, height / 4 );
 
-	bool allocated =
+	//All of them, whichever engine is active: switching engines mid-show must
+	//not allocate mid-chain (the Scoped* clear-to-0 trap above), and the
+	//stroke pass binds the stable buffer either way.
+	const bool allocated =
 		strokeBuffer.Ensure( width, height, GL_RGBA16F, PassBuffer::Sampling::Mipmapped )
 		&& glowBuffer[ 0 ].Ensure( glowWidth, glowHeight, GL_RGBA16F, PassBuffer::Sampling::Linear )
-		&& glowBuffer[ 1 ].Ensure( glowWidth, glowHeight, GL_RGBA16F, PassBuffer::Sampling::Linear );
-
-	if( overInput )
-	{
-		allocated = allocated
-			&& copyBuffer.Ensure( width, height, GL_RGBA16F, PassBuffer::Sampling::Mipmapped )
-			&& edgeBuffer.Ensure( width, height, GL_RGBA16F, PassBuffer::Sampling::Linear )
-			&& stableBuffer[ 0 ].Ensure( width, height, GL_RGBA16F, PassBuffer::Sampling::Mipmapped )
-			&& stableBuffer[ 1 ].Ensure( width, height, GL_RGBA16F, PassBuffer::Sampling::Mipmapped );
-	}
+		&& glowBuffer[ 1 ].Ensure( glowWidth, glowHeight, GL_RGBA16F, PassBuffer::Sampling::Linear )
+		&& copyBuffer.Ensure( width, height, GL_RGBA16F, PassBuffer::Sampling::Mipmapped )
+		&& edgeBuffer.Ensure( width, height, GL_RGBA16F, PassBuffer::Sampling::Linear )
+		&& stableBuffer[ 0 ].Ensure( width, height, GL_RGBA16F, PassBuffer::Sampling::Mipmapped )
+		&& stableBuffer[ 1 ].Ensure( width, height, GL_RGBA16F, PassBuffer::Sampling::Mipmapped );
 
 	if( !allocated )
 	{
@@ -507,13 +506,16 @@ void OutrunPlugin::Render( int width, int height, GLuint inputTexture, float max
 		return;
 	}
 
+	const bool engineA = static_cast< int >( std::lround( params[ PT_ENGINE ] ) )
+	                     == static_cast< int >( Engine::Trace );
+
 	int stableTarget = stableCurrent;
 
-	if( overInput )
+	//---------------------------------------------------------------------
+	// 1. The picture, into a texture of ours, with a mip chain on it. Both
+	//    engines need it: A traces it, B backgrounds and colours from it.
+	//---------------------------------------------------------------------
 	{
-		//-----------------------------------------------------------------
-		// 1. The picture, into a texture of ours, with a mip chain on it.
-		//-----------------------------------------------------------------
 		{
 			ScopedFBOBinding fbo( copyBuffer.GetGLID(), ScopedFBOBinding::RB_REVERT );
 			copyBuffer.ResizeViewPort();
@@ -529,10 +531,15 @@ void OutrunPlugin::Render( int width, int height, GLuint inputTexture, float max
 			quad.Draw();
 		}
 		copyBuffer.GenerateMipmaps();
+	}
 
-		//-----------------------------------------------------------------
-		// 2. Edge.
-		//-----------------------------------------------------------------
+	//---------------------------------------------------------------------
+	// 2 + 3. Edge and stabilise: Engine A only. Engine B never reads the
+	//    stable buffer, and its history going stale while B runs is handled
+	//    by the historyValid reset when the engine changes.
+	//---------------------------------------------------------------------
+	if( engineA )
+	{
 		{
 			ScopedFBOBinding fbo( edgeBuffer.GetGLID(), ScopedFBOBinding::RB_REVERT );
 			edgeBuffer.ResizeViewPort();
@@ -588,31 +595,20 @@ void OutrunPlugin::Render( int width, int height, GLuint inputTexture, float max
 
 		ScopedSamplerActivation sampler0( 0 );
 		Scoped2DTextureBinding paletteBinding( paletteTexture );
+		ScopedSamplerActivation sampler1( 1 );
+		Scoped2DTextureBinding stableTexture( stableBuffer[ stableTarget ].TextureID() );
+		ScopedSamplerActivation sampler2( 2 );
+		Scoped2DTextureBinding copyTexture( copyBuffer.TextureID() );
+
 		strokeShader.Set( "PaletteTexture", 0 );
+		strokeShader.Set( "StableTexture", 1 );
+		strokeShader.Set( "CopyTexture", 2 );
+		strokeShader.Set( "CentroidLod", stableBuffer[ stableTarget ].MaxMipLevel() );
+		strokeShader.Set( "Trace", params[ PT_TRACE ] );
 
-		//Effect-only bindings. In the source build these uniforms do not
-		//exist; FindUniform returns -1 and the sets are silent no-ops, but
-		//keeping the texture units unbound at all is tidier.
-		if( overInput )
-		{
-			ScopedSamplerActivation sampler1( 1 );
-			Scoped2DTextureBinding stableTexture( stableBuffer[ stableTarget ].TextureID() );
-			ScopedSamplerActivation sampler2( 2 );
-			Scoped2DTextureBinding copyTexture( copyBuffer.TextureID() );
-
-			strokeShader.Set( "StableTexture", 1 );
-			strokeShader.Set( "CopyTexture", 2 );
-			strokeShader.Set( "CentroidLod", stableBuffer[ stableTarget ].MaxMipLevel() );
-			strokeShader.Set( "Trace", params[ PT_TRACE ] );
-
-			//The scoped bindings clear their units on scope exit; the draw
-			//has to happen while they are alive.
-			setStrokeUniformsAndDraw( width, height, phaseNow, breakEffective );
-		}
-		else
-		{
-			setStrokeUniformsAndDraw( width, height, phaseNow, breakEffective );
-		}
+		//The scoped bindings clear their units on scope exit; the draw has to
+		//happen while they are alive.
+		setStrokeUniformsAndDraw( width, height, phaseNow, breakEffective );
 	}
 
 	//The glow's first pass reads this while drawing into a buffer a quarter
@@ -684,34 +680,27 @@ void OutrunPlugin::Render( int width, int height, GLuint inputTexture, float max
 		ScopedSamplerActivation sampler1( 1 );
 		Scoped2DTextureBinding glowTexture( glowBuffer[ 1 ].TextureID() );
 
+		ScopedSamplerActivation sampler2( 2 );
+		Scoped2DTextureBinding copyTexture( copyBuffer.TextureID() );
+		ScopedSamplerActivation sampler3( 3 );
+		Scoped2DTextureBinding stableTexture( stableBuffer[ stableTarget ].TextureID() );
+
 		compositeShader.Set( "LightTexture", 0 );
 		compositeShader.Set( "GlowTexture", 1 );
 		compositeShader.Set( "Background", params[ PT_BACKGROUND ] );
 		compositeShader.Set( "Glow", GlowFromParam( params[ PT_GLOW ] ) );
-
-		if( overInput )
-		{
-			ScopedSamplerActivation sampler2( 2 );
-			Scoped2DTextureBinding copyTexture( copyBuffer.TextureID() );
-			ScopedSamplerActivation sampler3( 3 );
-			Scoped2DTextureBinding stableTexture( stableBuffer[ stableTarget ].TextureID() );
-
-			compositeShader.Set( "CopyTexture", 2 );
-			compositeShader.Set( "StableTexture", 3 );
-			compositeShader.Set( "Dim", params[ PT_DIM ] );
-			compositeShader.Set( "MixAmount", params[ PT_MIX ] );
-			quad.Draw();
-		}
-		else
-		{
-			quad.Draw();
-		}
+		compositeShader.Set( "CopyTexture", 2 );
+		compositeShader.Set( "StableTexture", 3 );
+		compositeShader.Set( "Dim", params[ PT_DIM ] );
+		compositeShader.Set( "MixAmount", params[ PT_MIX ] );
+		quad.Draw();
 	}
 }
 
 //---------------------------------------------------------------------------
 void OutrunPlugin::setStrokeUniformsAndDraw( int width, int height, float phaseNow, float breakEffective )
 {
+	strokeShader.Set( "Engine", params[ PT_ENGINE ] );
 	strokeShader.Set( "Aspect", static_cast< float >( width ) / static_cast< float >( height ) );
 	strokeShader.Set( "PictureSize", static_cast< float >( width ), static_cast< float >( height ) );
 	strokeShader.Set( "WidthPx", WidthFromParam( params[ PT_WIDTH ] ) );
@@ -745,7 +734,9 @@ void OutrunPlugin::setStrokeUniformsAndDraw( int width, int height, float phaseN
 	//The Lissajous curve is solved here, once per frame, and marched in the
 	//shader: 48 segment distances against uniform points beats 96 sines per
 	//pixel, and keeps the curve maths in one language.
-	if( !overInput && static_cast< int >( std::lround( params[ PT_PATH ] ) ) == static_cast< int >( Path::Lissajous ) )
+	const bool engineB = static_cast< int >( std::lround( params[ PT_ENGINE ] ) )
+	                     == static_cast< int >( Engine::Paths );
+	if( engineB && static_cast< int >( std::lround( params[ PT_PATH ] ) ) == static_cast< int >( Path::Lissajous ) )
 	{
 		const float aspect = static_cast< float >( width ) / static_cast< float >( height );
 		const float scale  = PathScaleFromParam( params[ PT_PATH_SCALE ] );
@@ -775,38 +766,21 @@ void OutrunPlugin::setStrokeUniformsAndDraw( int width, int height, float phaseN
 //---------------------------------------------------------------------------
 FFResult OutrunPlugin::ProcessOpenGL( ProcessOpenGLStruct* pGL )
 {
-	int width           = 0;
-	int height          = 0;
-	GLuint inputTexture = 0;
-	float maxU          = 1.0f;
-	float maxV          = 1.0f;
+	if( pGL == nullptr || pGL->numInputTextures < 1 || pGL->inputTextures[ 0 ] == nullptr )
+		return FF_FAIL;
 
-	if( overInput )
-	{
-		if( pGL == nullptr || pGL->numInputTextures < 1 || pGL->inputTextures[ 0 ] == nullptr )
-			return FF_FAIL;
+	const FFGLTextureStruct& texture = *pGL->inputTextures[ 0 ];
+	const int width                  = static_cast< int >( texture.Width );
+	const int height                 = static_cast< int >( texture.Height );
 
-		const FFGLTextureStruct& texture = *pGL->inputTextures[ 0 ];
-		inputTexture                     = texture.Handle;
-		width                            = static_cast< int >( texture.Width );
-		height                           = static_cast< int >( texture.Height );
-
-		//The input texture can be bigger than the picture; MaxUV is the
-		//fraction that was really drawn. Resolved once, in the copy pass.
-		const FFGLTexCoords coords = GetMaxGLTexCoords( *pGL->inputTextures[ 0 ] );
-		maxU                       = coords.s;
-		maxV                       = coords.t;
-	}
-	else
-	{
-		width  = static_cast< int >( currentViewport.width );
-		height = static_cast< int >( currentViewport.height );
-	}
+	//The input texture can be bigger than the picture; MaxUV is the fraction
+	//that was really drawn. Resolved once, in the copy pass.
+	const FFGLTexCoords coords = GetMaxGLTexCoords( *pGL->inputTextures[ 0 ] );
 
 	if( width <= 0 || height <= 0 )
 		return FF_FAIL;
 
-	Render( width, height, inputTexture, maxU, maxV );
+	Render( width, height, texture.Handle, coords.s, coords.t );
 	return FF_SUCCESS;
 }
 
@@ -862,7 +836,7 @@ FFResult OutrunPlugin::SetFloatParameter( unsigned int index, float value )
 	//turning Detail up with Stability high leaves the old scale's outlines
 	//decaying underneath the new ones, which looks like the control having
 	//two effects.
-	if( index == PT_DETAIL || index == PT_SOURCE )
+	if( index == PT_DETAIL || index == PT_SOURCE || index == PT_ENGINE )
 		historyValid = false;
 
 	// A slider moved while a preset is active means the operator has taken

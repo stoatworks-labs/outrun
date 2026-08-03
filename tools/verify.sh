@@ -37,7 +37,7 @@ echo "ok   built"
 #---------------------------------------------------------------------------
 step "Bundles"
 #---------------------------------------------------------------------------
-for name in "Outrun" "Outrun Trace"; do
+for name in "Outrun"; do
 	binary="$BUILD/$name.bundle/Contents/MacOS/$name"
 
 	[[ -f "$binary" ]] || fail "$name: no binary at $binary"

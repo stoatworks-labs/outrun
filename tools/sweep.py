@@ -26,9 +26,9 @@ a naive sweep would report a stack of false failures:
   `--time` is for; everything else runs against a pinned phase so that two
   renders of the same settings are the same picture.
 
-Each variant is swept with the parameters that belong to it: the effect gets
-the Edge group, the trace controls and the clip-facing output controls over a
-synthetic test card; the source gets the Path group and everything shared.
+Every parameter is swept on the engine it belongs to: the Engine A group and
+the clip-facing output controls run on the default engine over the synthetic
+card; the Engine B group runs with Engine=1; everything shared runs on A.
 
 Usage::
 
@@ -47,25 +47,6 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 # Applied to every render. Nothing needed: the defaults already show strokes
 # in both variants, which was a design goal of the defaults.
 BASE = []
-
-# Parameters that only mean anything over a clip, or that drive the effect's
-# detector and trace. Swept with --effect, over the synthetic card.
-EFFECT_ONLY = {
-    "Detect On",
-    "Sensitivity",
-    "Softness",
-    "Detail",
-    "Stability",
-    "Trace",
-    "Direction",
-    "Colour Mode",
-    "Background",
-    "Dim",
-    "Mix",
-}
-
-# Parameters the effect ignores, so they are only ever swept on the source.
-SOURCE_ONLY = {"Path", "Path Size", "Path Detail", "Horizon"}
 
 # What else has to be true for a parameter to be able to do anything. Entries
 # are extra `--set` assignments, except entries starting with "--", which are
@@ -91,6 +72,12 @@ CONTEXT = {
 
     # Direction steers the Linear trace.
     "Direction":    ["Trace=2"],
+
+    # The Engine B group.
+    "Path":         ["Engine=1"],
+    "Path Size":    ["Engine=1"],
+    "Path Detail":  ["Engine=1"],
+    "Horizon":      ["Engine=1"],
 
     # Dim only dims the Dimmed Source background.
     "Dim":          ["Background=2"],
@@ -118,6 +105,7 @@ SWEEP_VALUES = [0.0, 0.137, 0.611, 1.0]
 
 # Option parameters are swept across their elements instead.
 OPTION_RANGE = {
+    "Engine": 2,
     "Detect On": 4,
     "Path": 8,
     "Trace": 4,
@@ -150,10 +138,8 @@ def read_png(path):
     return zlib.decompress(idat)
 
 
-def render(harness, out, settings, raw, effect, clock, verbose):
+def render(harness, out, settings, raw, clock, verbose):
     args = [str(harness), "--out", str(out), "--size", "480x270"]
-    if effect:
-        args.append("--effect")
     if clock:
         args += ["--time", "2.0"]
     else:
@@ -172,11 +158,9 @@ def render(harness, out, settings, raw, effect, clock, verbose):
     return read_png(out)
 
 
-def parameters(harness, effect):
+def parameters(harness):
     """Name and kind of every parameter, in declaration order."""
     args = [str(harness), "--list"]
-    if effect:
-        args.append("--effect")
 
     result = subprocess.run(args, capture_output=True, text=True)
     if result.returncode != 0:
@@ -212,50 +196,44 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         tmp = pathlib.Path(tmp)
 
-        for effect in (False, True):
-            for name, kind in parameters(harness, effect):
-                if kind in SKIP_KINDS:
-                    continue
-                if effect != (name in EFFECT_ONLY):
-                    continue
-                if effect and name in SOURCE_ONLY:
-                    continue
+        for name, kind in parameters(harness):
+            if kind in SKIP_KINDS:
+                continue
 
-                # Context entries that start "--" are raw harness arguments
-                # (a value follows each, also in the list); the rest are
-                # --set assignments.
-                context = CONTEXT.get(name, [])
-                extra = []
-                sets = []
-                raw = iter(context)
-                for token in raw:
-                    if token.startswith("--"):
-                        extra += [token, next(raw)]
-                    else:
-                        sets.append(token)
-
-                clock = name in NEEDS_CLOCK
-                base = BASE + sets
-
-                if name in OPTION_RANGE:
-                    values = [float(i) for i in range(OPTION_RANGE[name])]
+            # Context entries that start "--" are raw harness arguments
+            # (a value follows each, also in the list); the rest are
+            # --set assignments.
+            context = CONTEXT.get(name, [])
+            extra = []
+            sets = []
+            raw = iter(context)
+            for token in raw:
+                if token.startswith("--"):
+                    extra += [token, next(raw)]
                 else:
-                    values = SWEEP_VALUES
+                    sets.append(token)
 
-                frames = []
-                for value in values:
-                    out = tmp / "sweep.png"
-                    frames.append(
-                        render(harness, out, base + [f"{name}={value}"],
-                               extra, effect, clock, args.verbose))
+            clock = name in NEEDS_CLOCK
+            base = BASE + sets
 
-                checked += 1
-                if all(f == frames[0] for f in frames[1:]):
-                    where = "effect" if effect else "source"
-                    dead.append(f"{name} ({kind}, {where})")
-                    print(f"  DEAD {name}")
-                elif args.verbose:
-                    print(f"  ok   {name}")
+            if name in OPTION_RANGE:
+                values = [float(i) for i in range(OPTION_RANGE[name])]
+            else:
+                values = SWEEP_VALUES
+
+            frames = []
+            for value in values:
+                out = tmp / "sweep.png"
+                frames.append(
+                    render(harness, out, base + [f"{name}={value}"],
+                           extra, clock, args.verbose))
+
+            checked += 1
+            if all(f == frames[0] for f in frames[1:]):
+                dead.append(f"{name} ({kind})")
+                print(f"  DEAD {name}")
+            elif args.verbose:
+                print(f"  ok   {name}")
 
     print()
     if dead:

@@ -43,14 +43,12 @@ extern const char* const kCopyShader;
 extern const char* const kEdgeShader;
 extern const char* const kStabiliseShader;
 extern const char* const kBlurShader;
+extern const char* const kCompositeShader;
 
-/// The stroke pass for one variant. `effect` injects OUTRUN_EFFECT.
-std::string StrokeShaderSource( bool effect );
-
-/// The composite pass for one variant. The source build compiles the clip- and
-/// mask-dependent background modes out entirely rather than sampling textures
-/// that were never allocated.
-std::string CompositeShaderSource( bool effect );
+/// The stroke pass: both engines in one shader, switched by the Engine
+/// uniform (a uniform branch, so the derivatives in both producers stay
+/// well-defined).
+std::string StrokeShaderSource();
 
 /// One pixel per palette entry, writing `paletteColour()`'s answer straight
 /// out so it can be read back and compared against the CPU bake. Built from

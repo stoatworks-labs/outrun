@@ -1,12 +1,12 @@
 # outrun — orientation for another LLM (or a newcomer)
 
-**What it is:** neon synthwave strokes as **two** FFGL 2.1 plugins for
-Resolume Arena/Avenue. `Outrun` is a source that generates neon paths — the
-perspective grid with the striped sun is the flagship — and `Outrun Trace` is
-an effect that traces the clip's own outlines as neon tubes and lets them
-break away from the real geometry. C++17 + GLSL 4.10, CMake, universal macOS
-`.bundle`s and Windows `.dll`s. Public, MIT,
-`github.com/stoatworks-labs/outrun`.
+**What it is:** neon synthwave strokes as **one** FFGL 2.1 effect plugin for
+Resolume Arena/Avenue, with two algorithms behind one dropdown. **Engine A
+(Trace)** finds the clip's outlines and draws them as neon tubes that can
+break away from the real geometry; **Engine B (Paths)** generates neon
+geometry — the perspective grid with the striped sun is the flagship. C++17 +
+GLSL 4.10, CMake, universal macOS `.bundle` and a Windows `.dll`. Public,
+MIT, `github.com/stoatworks-labs/outrun`.
 
 `CLAUDE.md` is the command reference — build, install, verify. This file is
 the *why*: read it before touching the stroke field, the breakaway warps, or
@@ -26,11 +26,11 @@ much tube is here, and where along the stroke is it.**
 
 That pair — `strokeField()` returning (mass, along-coordinate) — is the whole
 interface between "what the strokes trace" and "what a neon tube looks like".
-The effect answers it from the stabilised edge mask; the source answers it
-from a distance function; and everything downstream — breakaway, palettes,
-clip colour, the white-hot core, the glow — is one shared piece of shader
-text that cannot diverge between the two plugins, because there is only one
-of it.
+Engine A answers it from the stabilised edge mask; Engine B from a distance
+function; the switch is one uniform branch, and everything downstream —
+breakaway, palettes, clip colour, the white-hot core, the glow — is one
+shared piece of shader text that cannot diverge between the engines, because
+there is only one of it.
 
 Three design rules fall out, and each is load-bearing:
 
@@ -122,11 +122,10 @@ parameter mid-enum, and a group silently splits in two (and every saved
 composition renumbers). Append only.
 
 **The plugin registers itself from a file-scope constructor.** `outrun_core`
-is an OBJECT library and each `CFFGLPluginInfo` lives in its own entry file,
-listed only in its own MODULE target. A STATIC core drops the registration
-TU and ships a bundle that loads, exports `plugMain`, and contains no
-plugins; an entry file in the shared core registers both plugins into both
-bundles. Verify with `nm -gU … | grep _plugMain` *and* a host load.
+is an OBJECT library and the `CFFGLPluginInfo` lives in `PluginEntry.cpp`,
+listed only in the MODULE target. A STATIC core drops the registration TU
+and ships a bundle that loads, exports `plugMain`, and contains no plugins.
+Verify with `nm -gU … | grep _plugMain` *and* a host load.
 
 **Randomness must be integer.** `fract(sin(x)·43758…)` is the driver's
 answer, so two GPUs disagree about which building is tall and which scanline
@@ -152,21 +151,24 @@ can act. Add a parameter, add its context, or the sweep fails honestly.
 ## Shape of the code
 
     source/Outrun.{h,cpp}    the one plugin class: parameters, buffers, passes.
-    source/Shaders.{h,cpp}   all GLSL. Stroke + composite assembled per
-                             variant around #define OUTRUN_EFFECT.
+    source/Shaders.{h,cpp}   all GLSL. Both engines in one stroke shader,
+                             switched by the Engine uniform.
     source/Controls.{h,cpp}  0..1 host parameters to physical units; the enums.
     source/Palette.{h,cpp}   16 palettes as gradient stops; bakes the table.
     source/Paths.{h,cpp}     the Path enum and names. The maths is in GLSL.
     source/Presets.h         8 factory presets, plain data, host-agnostic.
     source/PassBuffer.*      FFGLFBO with tinsel's leak fix, three samplings.
-    source/{Source,Effect}Plugin.cpp   the two registrations. See traps.
+    source/PluginEntry.cpp   the registration. See traps.
     source/Diag.*            a log file, for the shader that will not compile.
     tools/outruntest/        the offline harness (drives the real classes).
-    tools/sweep.py           no control is silently dead, both variants.
+    tools/sweep.py           no control is silently dead, both engines.
     tools/verify.sh          all of it.
 
-Pass chains: the effect runs copy → edge → stabilise → **stroke** → glow×6 →
-composite (the first three and the glow/composite are tinsel's, lifted); the
-source runs stroke → glow×6 → composite, and never allocates the edge
-buffers. The stabilise buffer's `.gba` carries (x·mask, y·mask, mask), so the
-artwork centroid is one `textureLod` off the top of its mip chain.
+Pass chain: copy → edge → stabilise → **stroke** → glow×6 → composite (the
+first three and the glow/composite are tinsel's, lifted). Edge and stabilise
+run only under Engine A; the copy always runs — Engine B backgrounds and
+colours from it — and every buffer is allocated regardless of engine so a
+mid-show engine switch never allocates mid-chain. The stabilise buffer's
+`.gba` carries (x·mask, y·mask, mask), so the artwork centroid is one
+`textureLod` off the top of its mip chain. `historyValid` resets when the
+engine changes, or A would blend against a mask B left to rot.

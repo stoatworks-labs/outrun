@@ -26,21 +26,27 @@ namespace outrun
     The declaration order in Outrun.cpp is the order they appear in the host,
     and the groups depend on consecutive ids staying consecutive --
     `SetParamGroup` collapses *runs* of same-group parameters, so reordering
-    these silently splits a group in two. Both plugins declare the identical
-    list so a composition can move between the source and the effect without
-    the parameter list shifting underneath it; each variant simply ignores the
-    other's group.
+    these silently splits a group in two. Saved compositions refer to these
+    ids, so once released they may only ever be appended to. Both engines
+    declare everything; the inactive engine's group is simply ignored.
 */
 enum ParamId : unsigned int
 {
-	// Edge -- the effect's detector. Ignored by the source.
-	PT_SOURCE = 0,
+	// Which algorithm draws the strokes. Engine A traces the clip's outlines;
+	// Engine B generates paths. One plugin, one dropdown.
+	PT_ENGINE = 0,
+
+	// Engine A -- the trace: the edge detector and the coordinate that runs
+	// colour along the outline.
+	PT_SOURCE,
 	PT_SENSITIVITY,
 	PT_SOFTNESS,
 	PT_DETAIL,
 	PT_STABILITY,
+	PT_TRACE,
+	PT_TRACE_ANGLE,
 
-	// Path -- the source's generator. Ignored by the effect.
+	// Engine B -- the generator.
 	PT_PATH,
 	PT_PATH_SCALE,
 	PT_PATH_DETAIL,
@@ -49,8 +55,6 @@ enum ParamId : unsigned int
 	// Stroke
 	PT_WIDTH,
 	PT_CORE,
-	PT_TRACE,
-	PT_TRACE_ANGLE,
 
 	// Breakaway
 	PT_BREAK_MODE,
@@ -94,6 +98,15 @@ enum ParamId : unsigned int
 	PT_PRESET,
 
 	PT_COUNT
+};
+
+/// The two algorithms.
+enum class Engine
+{
+	Trace = 0,  ///< Engine A: the clip's outlines, via the edge pipeline.
+	Paths,      ///< Engine B: generated paths; the clip is background and colour.
+
+	Count
 };
 
 /// Where phase comes from.

@@ -1,13 +1,12 @@
 /**
     outruntest -- render Outrun offline, and check what its strokes are doing.
 
-    It drives the REAL plugin class -- both of them: `--effect` instantiates
-    the Outrun Trace variant over a synthetic test card, and the default is the
-    Outrun source. A test that exercises a reimplementation tests the
-    reimplementation.
+    It drives the REAL plugin class over a synthetic test card. Engine A
+    (Trace) is the default; `--set "Engine=1"` switches to Engine B (Paths).
+    A test that exercises a reimplementation tests the reimplementation.
 
-        outruntest --out /tmp/frame.png       the source, on the default grid
-        outruntest --effect --out /tmp/f.png  the effect, over the test card
+        outruntest --out /tmp/frame.png       Engine A, tracing the test card
+        outruntest --set "Engine=1" --out ..  Engine B, the perspective grid
         outruntest --list                     every parameter and its default
         outruntest --palettes                 GLSL palette lookup vs the C++ bake
         outruntest --palettes-image /tmp/p.png  the palette table, as a picture
@@ -29,7 +28,7 @@
     film any of them. `--pipe` takes the fleet's raw RGBA frame protocol:
 
         ffmpeg -i in.mov -f rawvideo -pix_fmt rgba - \
-          | outruntest --effect --pipe --width 1920 --height 1080 [--script cues.txt] \
+          | outruntest --pipe --width 1920 --height 1080 [--script cues.txt] \
           | ffmpeg -f rawvideo -pix_fmt rgba -s 1920x1080 -i - out.mov
 
     What is deliberately NOT here: a CPU mirror of the path distance functions
@@ -765,7 +764,6 @@ int main( int argc, char** argv )
 	bool wantList    = false;
 	bool wantPalettes = false;
 	bool wantPipe    = false;
-	bool wantEffect  = false;
 	bool havePhase   = false;
 	float phasePin   = 0.0f;
 	std::vector< std::string > settings;
@@ -780,9 +778,7 @@ int main( int argc, char** argv )
 			std::printf(
 				"outruntest -- render and check the Outrun neon plugins\n"
 				"\n"
-				"  --out PATH            render a frame (default /tmp/outrun.png)\n"
-				"  --effect              drive the Outrun Trace effect over the test card\n"
-				"                        (the default is the Outrun source)\n"
+				"  --out PATH            render a frame over the test card (default /tmp/outrun.png)\n"
 				"  --card PATH           write the test card alone, undecorated\n"
 				"  --width N             width (default 1280)\n"
 				"  --height N            height (default 720)\n"
@@ -853,8 +849,6 @@ int main( int argc, char** argv )
 			wantPalettes = true;
 		else if( argument == "--pipe" )
 			wantPipe = true;
-		else if( argument == "--effect" )
-			wantEffect = true;
 		else if( argument == "--bench" )
 			settings.push_back( "__bench__" );//handled below, keeps the flag loop flat
 		else
@@ -915,14 +909,15 @@ int main( int argc, char** argv )
 		return result;
 	}
 
-	//The contact sheets pick their own variant: paths are the source's,
-	//breakaway is shown on the effect over the card.
+	//The contact sheets pick their own engine: paths on Engine B, breakaway
+	//on Engine A over the card.
 	if( !pathsSheetPath.empty() || !breaksSheetPath.empty() )
 	{
 		const bool doPaths = !pathsSheetPath.empty();
 		const int tileW = 480, tileH = 270;
 
-		OutrunPlugin plugin( !doPaths );
+		OutrunPlugin plugin;
+		plugin.SetFloatParameter( PT_ENGINE, doPaths ? 1.0f : 0.0f );
 		plugin.SetPhaseOverride( 0.6f );
 
 		FFGLViewportStruct viewport = {};
@@ -946,7 +941,7 @@ int main( int argc, char** argv )
 		FFGLTextureStruct* inputs[ 1 ]                  = { &inputStruct };
 
 		ProcessOpenGLStruct process = {};
-		process.numInputTextures    = doPaths ? 0u : 1u;
+		process.numInputTextures    = 1;
 		process.inputTextures       = inputs;
 		process.HostFBO             = outputFBO;
 
@@ -995,7 +990,7 @@ int main( int argc, char** argv )
 		return result;
 	}
 
-	OutrunPlugin plugin( wantEffect );
+	OutrunPlugin plugin;
 
 	if( havePhase )
 		plugin.SetPhaseOverride( phasePin );
@@ -1042,7 +1037,7 @@ int main( int argc, char** argv )
 	FFGLTextureStruct* inputs[ 1 ]                  = { &inputStruct };
 
 	ProcessOpenGLStruct process = {};
-	process.numInputTextures    = wantEffect ? 1u : 0u;
+	process.numInputTextures    = 1;
 	process.inputTextures       = inputs;
 	process.HostFBO             = outputFBO;
 
@@ -1064,8 +1059,7 @@ int main( int argc, char** argv )
 			{ "3840x2160 ", 3840, 2160 },
 		};
 
-		std::printf( "%d frames each, after a 20-frame warm-up, glFinish both sides. %s variant.\n\n",
-		             frames, wantEffect ? "effect" : "source" );
+		std::printf( "%d frames each, after a 20-frame warm-up, glFinish both sides.\n\n", frames );
 		std::printf( "resolution     ms/frame   equivalent fps   %% of a 60fps frame\n" );
 
 		for( const Size& size : sizes )
@@ -1082,12 +1076,11 @@ int main( int argc, char** argv )
 			FFGLTextureStruct* benchInputs[ 1 ]           = { &benchInput };
 
 			ProcessOpenGLStruct benchProcess = {};
-			benchProcess.numInputTextures    = wantEffect ? 1u : 0u;
+			benchProcess.numInputTextures    = 1;
 			benchProcess.inputTextures       = benchInputs;
 			benchProcess.HostFBO             = benchFBO;
 
-			//The source variant sizes itself from the InitGL viewport, so it
-			//has to be re-initialised per size rather than merely re-aimed.
+			//Re-initialised per size so every resolution starts cold.
 			plugin.DeInitGL();
 			FFGLViewportStruct benchViewport = {};
 			benchViewport.width              = static_cast< FFUInt32 >( size.w );
@@ -1293,7 +1286,7 @@ int main( int argc, char** argv )
 		                       : static_cast< double >( frame ) / fps;
 		driveClock( plugin, seconds );
 
-		if( wantEffect && noise > 0.0f )
+		if( noise > 0.0f )
 		{
 			const std::vector< unsigned char > noisy = addNoise( card, frame, noise );
 			glBindTexture( GL_TEXTURE_2D, sourceTexture );
@@ -1319,8 +1312,7 @@ int main( int argc, char** argv )
 		return 1;
 	}
 
-	std::printf( "wrote %s (%dx%d, %d frames, %s variant)\n", outPath.c_str(), width, height, frames,
-	             wantEffect ? "effect" : "source" );
+	std::printf( "wrote %s (%dx%d, %d frames)\n", outPath.c_str(), width, height, frames );
 
 	plugin.DeInitGL();
 	glDeleteFramebuffers( 1, &outputFBO );

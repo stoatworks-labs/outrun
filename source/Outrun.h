@@ -11,20 +11,19 @@
 #include <array>
 
 /**
-    Outrun -- neon strokes for Resolume, twice over.
+    Outrun -- neon strokes for Resolume: two engines, one plugin.
 
-    One class, two plugins. The **effect** ("Outrun Trace") finds the outlines
-    in the clip -- tinsel's edge pipeline, lifted whole -- and draws them as
-    continuous neon tubes that can *break away* from the real geometry:
-    echoes, angular snapping, scanline glitch, flow, rays. The **source**
-    ("Outrun") draws the same tubes along generated paths instead: the
-    perspective grid with the striped sun, tunnels, circuits, skylines, and
-    the routed audio as an oscilloscope.
+    **Engine A (Trace)** finds the outlines in the clip -- tinsel's edge
+    pipeline, lifted whole -- and draws them as continuous neon tubes that can
+    *break away* from the real geometry: echoes, angular snapping, scanline
+    glitch, flow, rays. **Engine B (Paths)** draws the same tubes along
+    generated paths instead: the perspective grid with the striped sun,
+    tunnels, circuits, skylines, and the routed audio as an oscilloscope.
 
-    They differ by a constructor flag, a `#define` handed to the shader
-    compiler, and their input count -- little enough that keeping them as one
-    class is what stops them drifting apart. Both declare the identical
-    parameter list so a composition can move between them.
+    One FF_EFFECT plugin, one dropdown. The engines share every stroke-facing
+    control, the shader is one compiled program with a uniform switch, and the
+    clip is always present -- Engine B uses it as background and colour
+    source rather than tracing it.
 
     **The stroke field idea.** Both variants reduce to the same contract: a
     per-pixel tube mass and a coordinate along the stroke. The effect's mass
@@ -41,7 +40,7 @@ namespace outrun
 class OutrunPlugin : public CFFGLPlugin
 {
 public:
-	explicit OutrunPlugin( bool overInput );
+	OutrunPlugin();
 
 	//CFFGLPlugin
 	FFResult InitGL( const FFGLViewportStruct* vp ) override;
@@ -64,12 +63,11 @@ public:
 	/// look dead to a sweep.
 	void SetPhaseOverride( float phase );
 
-	bool IsEffect() const { return overInput; }
-
 private:
 	/// The ParamId each presets::Param drives, in presets::Param order. The
 	/// preset table stays host-agnostic; this is the FFGL binding of it.
 	static constexpr unsigned int kPresetParamIDs[ presets::kParamCount ] = {
+		PT_ENGINE,
 		PT_PATH, PT_PATH_SCALE, PT_PATH_DETAIL, PT_HORIZON,
 		PT_WIDTH, PT_CORE, PT_TRACE, PT_TRACE_ANGLE,
 		PT_BREAK_MODE, PT_BREAK_AMOUNT, PT_BREAK_SPREAD, PT_BREAK_HUE,
@@ -102,8 +100,6 @@ private:
 
 	void UpdateAudio();
 
-	const bool overInput;
-
 	ffglex::FFGLShader copyShader;
 	ffglex::FFGLShader edgeShader;
 	ffglex::FFGLShader stabiliseShader;
@@ -112,9 +108,9 @@ private:
 	ffglex::FFGLShader compositeShader;
 	ffglex::FFGLScreenQuad quad;
 
-	PassBuffer copyBuffer;        ///< the picture, ours, mipmapped. Effect only.
-	PassBuffer edgeBuffer;        ///< raw gradient magnitude. Effect only.
-	PassBuffer stableBuffer[ 2 ]; ///< ping-pong: stabilised edge + moments. Effect only.
+	PassBuffer copyBuffer;        ///< the picture, ours, mipmapped
+	PassBuffer edgeBuffer;        ///< raw gradient magnitude. Engine A only.
+	PassBuffer stableBuffer[ 2 ]; ///< ping-pong: stabilised edge + moments. Engine A only.
 	PassBuffer strokeBuffer;      ///< the tubes, premultiplied, mipmapped
 	PassBuffer glowBuffer[ 2 ];   ///< quarter size, ping-ponged by the blur
 
@@ -153,7 +149,7 @@ private:
 	/// Set when the history buffers hold nothing worth blending against --
 	/// the first frame, and any frame after a resize. Without it the first
 	/// stabilised frame blends the new picture against the last clip's
-	/// outlines. Effect only.
+	/// outlines. Engine A only.
 	bool historyValid = false;
 
 	float params[ PT_COUNT ] = {};

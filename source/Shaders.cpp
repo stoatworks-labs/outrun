@@ -194,13 +194,12 @@ void main()
 //---------------------------------------------------------------------------
 static const char* const kStrokePreamble = R"(
 uniform sampler2D PaletteTexture; //kPaletteSize x Palette::Count, texelFetch only
-
-#ifdef OUTRUN_EFFECT
 uniform sampler2D StableTexture;  //r = raw stable edge, a = mask, gb = moments
-uniform sampler2D CopyTexture;    //the picture, for the Clip colour modes
+uniform sampler2D CopyTexture;    //the picture, for backgrounds and the Clip colour modes
+
+uniform float Engine;             //0 Engine A (trace), 1 Engine B (paths)
 uniform float CentroidLod;        //top of the stable buffer's mip chain
 uniform float Trace;              //0 spiral, 1 angle, 2 linear, 3 radial
-#endif
 
 uniform float Aspect;             //width / height, so a circle is a circle
 uniform vec2 PictureSize;         //in pixels; the paths' anti-alias needs it
@@ -231,9 +230,7 @@ uniform float Phase;              //cycles; the only clock this shader sees
 uniform float Audio[ 64 ];        //smoothed spectrum, low frequencies first
 uniform float AudioLevel;         //0 ignores the spectrum entirely
 
-#ifndef OUTRUN_EFFECT
 uniform vec2 Curve[ 49 ];         //CPU-solved samples of the marched Lissajous
-#endif
 
 in vec2 uv;
 out vec4 fragColor;
@@ -309,11 +306,10 @@ float sdSeg( vec2 p, vec2 a, vec2 b )
 	return length( pa - ba * h );
 }
 
-#ifdef OUTRUN_EFFECT
 //---------------------------------------------------------------------------
-// The effect's field: the stabilised mask, and a coordinate along it.
+// Engine A's field: the stabilised mask, and a coordinate along it.
 //---------------------------------------------------------------------------
-vec2 strokeCentre()
+vec2 traceCentroid()
 {
 	//The middle of the artwork, not the middle of the frame. Reduced out of
 	//the stable buffer's mip chain in one fetch: the top level is the average
@@ -352,7 +348,7 @@ float traceCoordinate( vec2 at, vec2 centre )
 	return ang;
 }
 
-vec2 strokeField( vec2 at, vec2 centre )
+vec2 maskField( vec2 at, vec2 centre )
 {
 	//Width is a dilation done with the mip chain that is already there.
 	//Blurring the thin Sobel ridge lowers its peak in proportion to how much
@@ -366,9 +362,8 @@ vec2 strokeField( vec2 at, vec2 centre )
 	return vec2( m, traceCoordinate( at, centre ) );
 }
 
-#else
 //---------------------------------------------------------------------------
-// The source's field: a distance to one of the paths, and a coordinate along
+// Engine B's field: a distance to one of the paths, and a coordinate along
 // it. Everything is a pure function of (uv, Phase) -- no state anywhere, so
 // nothing drifts with the frame rate and any frame renders on its own.
 //
@@ -378,8 +373,6 @@ vec2 strokeField( vec2 at, vec2 centre )
 // and the perspective grid thins toward the horizon without any per-path
 // effort.
 //---------------------------------------------------------------------------
-vec2 strokeCentre() { return vec2( 0.5 ); }
-
 vec2 pathGrid( vec2 at )
 {
 	float d = 1e6;
@@ -621,7 +614,7 @@ vec2 pathDistance( vec2 at )
 	return pathGrid( at );
 }
 
-vec2 strokeField( vec2 at, vec2 centre )
+vec2 pathField( vec2 at )
 {
 	vec2 dt = pathDistance( at );
 
@@ -635,7 +628,23 @@ vec2 strokeField( vec2 at, vec2 centre )
 	float m = 1.0 - smoothstep( WidthPx * 0.35, max( WidthPx, 1.5 ), dPx );
 	return vec2( m, dt.y );
 }
-#endif
+
+//---------------------------------------------------------------------------
+// The one field both engines answer through. Engine is a uniform, so this
+// branch is uniform across every fragment and the derivatives inside both
+// producers stay well-defined.
+//---------------------------------------------------------------------------
+vec2 strokeCentre()
+{
+	return int( Engine + 0.5 ) == 0 ? traceCentroid() : vec2( 0.5 );
+}
+
+vec2 strokeField( vec2 at, vec2 centre )
+{
+	if( int( Engine + 0.5 ) == 0 )
+		return maskField( at, centre );
+	return pathField( at );
+}
 )";
 
 static const char* const kStrokeMain = R"(
@@ -644,7 +653,6 @@ vec3 strokeColour( float s )
 	float pos = s * Spread - Phase * 0.25;
 	vec3 pal = paletteColour( pos );
 
-#ifdef OUTRUN_EFFECT
 	int cm = int( ColourMode + 0.5 );
 	if( cm >= 1 )
 	{
@@ -657,7 +665,6 @@ vec3 strokeColour( float s )
 		vec3 straight = clip.a > 0.0031 ? clip.rgb / clip.a : clip.rgb;
 		return cm == 1 ? straight : straight * pal;
 	}
-#endif
 
 	return pal;
 }
@@ -828,18 +835,15 @@ void main()
 // source build has no clip and no mask, and compiles those modes out rather
 // than sampling textures that were never allocated.
 //---------------------------------------------------------------------------
-static const char* const kCompositeShader = R"(#version 410 core
+const char* const kCompositeShader = R"(#version 410 core
 
 uniform sampler2D LightTexture;
 uniform sampler2D GlowTexture;
-
-#ifdef OUTRUN_EFFECT
 uniform sampler2D CopyTexture;
 uniform sampler2D StableTexture;
+
 uniform float MixAmount;
 uniform float Dim;
-#endif
-
 uniform float Background;  //0 black, 1 source, 2 dimmed source, 3 transparent, 4 edges
 uniform float Glow;
 
@@ -858,7 +862,6 @@ void main()
 
 	int mode = int( Background + 0.5 );
 
-#ifdef OUTRUN_EFFECT
 	vec4 source = texture( CopyTexture, uv );
 
 	vec4 result;
@@ -888,51 +891,15 @@ void main()
 	}
 
 	fragColor = mix( source, result, MixAmount );
-#else
-	//The source has no clip: Source, Dimmed Source and Edges all degrade to
-	//Black, and Mix is ignored -- the parameters exist so a composition can
-	//move between the two plugins, not because they mean anything here.
-	if( mode == 3 )
-		fragColor = lit;
-	else
-		fragColor = vec4( lit.rgb, 1.0 );
-#endif
 }
 )";
 
 //---------------------------------------------------------------------------
 // Assembly.
 //---------------------------------------------------------------------------
-namespace
+std::string StrokeShaderSource()
 {
-std::string assemble( const char* body, bool effect )
-{
-	std::string s( "#version 410 core\n" );
-	if( effect )
-		s += "#define OUTRUN_EFFECT 1\n";
-	s += body;
-	return s;
-}
-
-/// For sources that carry their own #version line: inject the define on the
-/// line after it, where the compiler will still accept a preprocessor token.
-std::string withDefine( const char* source, bool effect )
-{
-	std::string s( source );
-	if( effect )
-	{
-		const size_t nl = s.find( '\n' );
-		if( nl != std::string::npos )
-			s.insert( nl + 1, "#define OUTRUN_EFFECT 1\n" );
-	}
-	return s;
-}
-} // namespace
-
-std::string StrokeShaderSource( bool effect )
-{
-	return assemble(
-		( std::string( kStrokePreamble ) + kStrokeLibrary + kPaletteGLSL + kStrokeMain ).c_str(), effect );
+	return std::string( "#version 410 core\n" ) + kStrokePreamble + kStrokeLibrary + kPaletteGLSL + kStrokeMain;
 }
 
 std::string PaletteProbeShaderSource()
@@ -965,9 +932,5 @@ void main()
 	return std::string( "#version 410 core\n" ) + probe + kPaletteGLSL + probeMain;
 }
 
-std::string CompositeShaderSource( bool effect )
-{
-	return withDefine( kCompositeShader, effect );
-}
 
 } // namespace outrun

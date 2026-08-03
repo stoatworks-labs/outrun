@@ -64,10 +64,9 @@ add_subdirectory(external/ffgl EXCLUDE_FROM_ALL)
 # the result is a bundle that loads, exports plugMain, and reports that it
 # contains no plugins.
 #
-# Note what is NOT in here: SourcePlugin.cpp and EffectPlugin.cpp. Each carries
-# its own CFFGLPluginInfo with its own plugin ID, and each is listed directly in
-# its own MODULE target below. Putting either in the shared library would
-# register both plugins into both bundles.
+# Note what is NOT in here: PluginEntry.cpp, which carries the
+# CFFGLPluginInfo. It is listed directly in the MODULE target below, where the
+# linker cannot drop it.
 # ---------------------------------------------------------------------------
 add_library(outrun_core OBJECT
     source/Diag.h
@@ -102,38 +101,30 @@ if(NOT APPLE)
 endif()
 
 # ---------------------------------------------------------------------------
-# The two plugins. FFGL resolves one plugMain per binary, so a source and an
-# effect are two bundles -- not one bundle with two entries.
+# The plugin. One bundle, both engines; the registration lives in
+# PluginEntry.cpp, listed here and never in the OBJECT library -- see the note
+# in that file.
 # ---------------------------------------------------------------------------
-function(outrun_add_plugin target entry bundle_name identifier)
-    add_library(${target} MODULE ${entry})
-    target_link_libraries(${target} PRIVATE outrun_core)
+add_library(Outrun MODULE source/PluginEntry.cpp)
+target_link_libraries(Outrun PRIVATE outrun_core)
 
-    if(APPLE)
-        set_target_properties(${target} PROPERTIES
-            BUNDLE TRUE
-            BUNDLE_EXTENSION "bundle"
-            OUTPUT_NAME "${bundle_name}"
-            MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Info.plist.in"
-            MACOSX_BUNDLE_BUNDLE_NAME "${bundle_name}"
-            MACOSX_BUNDLE_GUI_IDENTIFIER "${identifier}"
-            MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
-        )
-        # FFGL hosts resolve plugMain by symbol name, so keep default visibility.
-        target_link_libraries(${target} PRIVATE
-            "-framework OpenGL"
-            "-framework Carbon"
-            "-framework AppKit"
-        )
-    else()
-        set_target_properties(${target} PROPERTIES OUTPUT_NAME "${bundle_name}")
-    endif()
-endfunction()
-
-outrun_add_plugin(OutrunSource source/SourcePlugin.cpp
-    "Outrun" "com.stoatworks.ffgl.outrun")
-outrun_add_plugin(OutrunEffect source/EffectPlugin.cpp
-    "Outrun Trace" "com.stoatworks.ffgl.outrun.trace")
+if(APPLE)
+    set_target_properties(Outrun PROPERTIES
+        BUNDLE TRUE
+        BUNDLE_EXTENSION "bundle"
+        OUTPUT_NAME "Outrun"
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Info.plist.in"
+        MACOSX_BUNDLE_BUNDLE_NAME "Outrun"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.stoatworks.ffgl.outrun"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+    )
+    # FFGL hosts resolve plugMain by symbol name, so keep default visibility.
+    target_link_libraries(Outrun PRIVATE
+        "-framework OpenGL"
+        "-framework Carbon"
+        "-framework AppKit"
+    )
+endif()
 
 # ---------------------------------------------------------------------------
 # Offline harness. Drives the real plugin class through the real FFGL sequence
@@ -150,7 +141,7 @@ if(OUTRUN_BUILD_TOOLS AND APPLE)
 endif()
 
 # ---------------------------------------------------------------------------
-# `cmake --install` drops both bundles straight into the user's Resolume plugin
+# `cmake --install` drops the bundle straight into the user's Resolume plugin
 # folder. Override with -DCMAKE_INSTALL_PREFIX=...
 # ---------------------------------------------------------------------------
 if(APPLE AND NOT CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -160,7 +151,7 @@ elseif(APPLE)
         CACHE PATH "" FORCE)
 endif()
 
-install(TARGETS OutrunSource OutrunEffect
+install(TARGETS Outrun
     LIBRARY DESTINATION "."
     BUNDLE  DESTINATION "."
 )

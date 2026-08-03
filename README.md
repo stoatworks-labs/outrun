@@ -22,8 +22,8 @@ the picture itself.
 
 ## Install
 
-Drop both bundles (macOS) or both DLLs (Windows) into Resolume's plugin
-folder, then restart Resolume:
+Drop the bundle (macOS) or the DLL (Windows) into Resolume's plugin folder,
+then restart Resolume:
 
     ~/Documents/Resolume Arena/Extra Effects      (or "Resolume Avenue")
 
@@ -36,20 +36,22 @@ objects, or build from source:
     cmake --build build
     cmake --install build
 
-"Outrun" appears under Sources, "Outrun Trace" under Effects. Both declare the
-same parameter list, so a composition can move between them.
+"Outrun" appears under Effects. Engine B needs any clip under it -- a solid
+black clip works, and the Background modes decide whether the clip shows.
 
 ## The controls, briefly
 
-- **Edge** (effect only): what counts as an outline. `Detect On` picks the
+- **Engine**: A traces the clip, B generates paths.
+- **Engine A — Trace**: what counts as an outline. `Detect On` picks the
   channel (Luma or Alpha is right for artwork either way), `Sensitivity` and
   `Softness` set the threshold, `Detail` the scale, `Stability` how long an
   edge survives a flickery frame. Set them against the `Edges` background,
-  which shows the raw mask.
-- **Path** (source only): which generator, its size, its density, and where
+  which shows the raw mask. `Trace` decides how colour runs along the
+  outline.
+- **Engine B — Paths**: which generator, its size, its density, and where
   the horizon sits.
 - **Stroke**: tube `Width` in pixels, and `Core` -- how much of the tube
-  saturates to white. `Trace` decides how colour runs along a traced outline.
+  saturates to white.
 - **Breakaway**: the mode, the amount (0 is the faithful geometry), a
   per-mode spread, and a per-copy palette shift.
 - **Colour**: palette or clip colours, palette cycles per run (`Spread`),
@@ -68,8 +70,8 @@ builds are universal (arm64 + x86_64); Windows needs GLEW via vcpkg.
 
 The offline harness renders the real plugin classes headlessly:
 
-    ./build/outruntest --out /tmp/frame.png            # the source
-    ./build/outruntest --effect --out /tmp/frame.png   # the effect, over a test card
+    ./build/outruntest --out /tmp/frame.png            # Engine A over a test card
+    ./build/outruntest --set "Engine=1" --out ...      # Engine B, the grid
     ./build/outruntest --paths /tmp/paths.png          # every path, checked distinct
     ./build/outruntest --breaks /tmp/breaks.png        # every break mode, likewise
     ./build/outruntest --palettes                      # GLSL palettes vs the C++ bake
