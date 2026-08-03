@@ -64,6 +64,33 @@ black clip works, and the Background modes decide whether the clip shows.
   spectrum itself.
 
 <!-- downloads:start -->
+
+## Download
+
+**[v0.1.0](https://github.com/stoatworks-labs/outrun/releases/tag/v0.1.0)** — prebuilt for macOS and Windows. Pick your platform:
+
+<details>
+<summary><b>macOS</b> — Universal (Apple Silicon + Intel)</summary>
+
+| Build | Download | Size |
+| --- | --- | --- |
+| Universal (Apple Silicon + Intel) · .dmg disk image | [`outrun-0.1.0-macos-universal.dmg`](https://github.com/stoatworks-labs/outrun/releases/download/v0.1.0/outrun-0.1.0-macos-universal.dmg) | 220 KB |
+| Universal (Apple Silicon + Intel) · .zip archive | [`outrun-macos-universal.zip`](https://github.com/stoatworks-labs/outrun/releases/latest/download/outrun-macos-universal.zip) | 176 KB |
+
+</details>
+
+<details>
+<summary><b>Windows</b> — x64</summary>
+
+| Build | Download | Size |
+| --- | --- | --- |
+| x64 · .exe installer | [`outrun-0.1.0-windows-x86_64-setup.exe`](https://github.com/stoatworks-labs/outrun/releases/download/v0.1.0/outrun-0.1.0-windows-x86_64-setup.exe) | 222 KB |
+| x64 · .zip archive | [`outrun-windows-x86_64.zip`](https://github.com/stoatworks-labs/outrun/releases/latest/download/outrun-windows-x86_64.zip) | 117 KB |
+
+</details>
+
+All builds, checksums and release notes: [github.com/stoatworks-labs/outrun/releases](https://github.com/stoatworks-labs/outrun/releases).
+
 <!-- downloads:end -->
 
 ## Building and testing
