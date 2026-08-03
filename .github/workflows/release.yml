@@ -1,12 +1,11 @@
 name: release
 
-# Build the Outrun FFGL pair for the two platforms Resolume runs on:
-#   - macOS   -> universal (arm64 + x86_64) "Outrun.bundle" + "Outrun Trace.bundle"
-#   - Windows -> x64 "Outrun.dll" + "Outrun Trace.dll" (GLEW static via vcpkg)
-# The two plugins ship together in one zip per platform -- an operator wants
-# the pair. Trigger manually (Actions > release > Run workflow) or by pushing
-# a v* tag; a workflow_dispatch run builds both platforms and skips
-# publication, which is the cheap way to prove Windows still compiles.
+# Build the Outrun FFGL plugin for the two platforms Resolume runs on:
+#   - macOS   -> universal (arm64 + x86_64) "Outrun.bundle"
+#   - Windows -> x64 "Outrun.dll" (GLEW static via vcpkg)
+# Trigger manually (Actions > release > Run workflow) or by pushing a v* tag;
+# a workflow_dispatch run builds both platforms and skips publication, which
+# is the cheap way to prove Windows still compiles.
 on:
   workflow_dispatch:
   push:
@@ -72,21 +71,17 @@ jobs:
           mkdir -p out
           if [ "${{ runner.os }}" = "macOS" ]; then
             cp -R "build/Outrun.bundle" "out/Outrun.bundle"
-            cp -R "build/Outrun Trace.bundle" "out/Outrun Trace.bundle"
-            # Sanity-check both bundles really are universal and export
+            # Sanity-check the bundle really is universal and exports
             # plugMain. An arm64-only build logs as a success, and a bundle
             # that exports nothing loads cleanly and reports that it contains
             # no plugins -- neither failure is visible anywhere else here.
-            for name in "Outrun" "Outrun Trace"; do
-              bin="out/$name.bundle/Contents/MacOS/$name"
-              lipo -archs "$bin"
-              lipo -archs "$bin" | grep -q "x86_64"
-              lipo -archs "$bin" | grep -q "arm64"
-              nm -gU "$bin" | grep -q "_plugMain"
-            done
+            bin="out/Outrun.bundle/Contents/MacOS/Outrun"
+            lipo -archs "$bin"
+            lipo -archs "$bin" | grep -q "x86_64"
+            lipo -archs "$bin" | grep -q "arm64"
+            nm -gU "$bin" | grep -q "_plugMain"
           else
             cp "build/Release/Outrun.dll" "out/Outrun.dll"
-            cp "build/Release/Outrun Trace.dll" "out/Outrun Trace.dll"
           fi
           ls -R out
 
@@ -112,7 +107,6 @@ jobs:
             com.stoatworks.outrun "$GITHUB_WORKSPACE"
           cp README.md out/ 2>/dev/null || true
           rl_adhoc_sign "out/Outrun.bundle"
-          rl_adhoc_sign "out/Outrun Trace.bundle"
           rl_dmg "${{ matrix.name }}" out
 
       - name: Upload artifacts
