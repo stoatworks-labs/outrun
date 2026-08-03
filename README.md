@@ -63,6 +63,9 @@ black clip works, and the Background modes decide whether the clip shows.
   bass shove the strokes off the geometry. The `Waveform` path draws the
   spectrum itself.
 
+<!-- downloads:start -->
+<!-- downloads:end -->
+
 ## Building and testing
 
 C++17 + GLSL 4.10, CMake, FFGL 2.1 (SDK vendored as a submodule). macOS
