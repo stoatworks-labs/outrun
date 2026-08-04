@@ -114,7 +114,12 @@ OPTION_RANGE = {
     "Palette": 16,
     "Sync": 4,
     "Background": 5,
-    "Preset": 9,
+    # Custom plus every entry in source/Presets.h. --list reports a
+    # parameter's kind but not its element count, so this one number tracks
+    # that table by hand; the --presets contact sheet is what actually
+    # renders all of them, so a stale count here under-sweeps rather than
+    # letting a preset go unchecked.
+    "Preset": 1 + 16,
 }
 
 

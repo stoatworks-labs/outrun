@@ -12,6 +12,7 @@
         outruntest --palettes-image /tmp/p.png  the palette table, as a picture
         outruntest --paths /tmp/paths.png     every path, 8-up, checked distinct
         outruntest --breaks /tmp/b.png        every break mode, 6-up, checked live
+        outruntest --presets /tmp/pre.png     every factory preset, checked distinct
         outruntest --card /tmp/card.png       the test card on its own
         outruntest --pipe                     raw frames in, raw frames out
 
@@ -42,6 +43,7 @@
 #include "Outrun.h"
 #include "Palette.h"
 #include "Paths.h"
+#include "Presets.h"
 #include "Shaders.h"
 
 #include <OpenGL/OpenGL.h>
@@ -754,6 +756,7 @@ int main( int argc, char** argv )
 	std::string paletteImagePath;
 	std::string pathsSheetPath;
 	std::string breaksSheetPath;
+	std::string presetsSheetPath;
 	std::string scriptPath;
 	int width        = 1280;
 	int height       = 720;
@@ -794,6 +797,7 @@ int main( int argc, char** argv )
 				"  --palettes-image PATH write the palette table as a picture\n"
 				"  --paths PATH          contact sheet of every path, checked live and distinct\n"
 				"  --breaks PATH         contact sheet of every break mode, likewise\n"
+				"  --presets PATH        contact sheet of every factory preset, likewise\n"
 				"  --bench               time a frame at 720p through 4K\n"
 				"  --pipe                raw RGBA frames on stdin, raw RGBA frames on stdout\n"
 				"  --script PATH         parameter cues for --pipe: 'frame Name Value'\n"
@@ -810,6 +814,8 @@ int main( int argc, char** argv )
 			pathsSheetPath = argv[ ++i ];
 		else if( argument == "--breaks" && hasNext )
 			breaksSheetPath = argv[ ++i ];
+		else if( argument == "--presets" && hasNext )
+			presetsSheetPath = argv[ ++i ];
 		else if( argument == "--script" && hasNext )
 			scriptPath = argv[ ++i ];
 		else if( argument == "--width" && hasNext )
@@ -910,14 +916,25 @@ int main( int argc, char** argv )
 	}
 
 	//The contact sheets pick their own engine: paths on Engine B, breakaway
-	//on Engine A over the card.
-	if( !pathsSheetPath.empty() || !breaksSheetPath.empty() )
+	//on Engine A over the card. Presets pick neither -- each one carries its
+	//own engine, which is most of what a preset is for.
+	if( !pathsSheetPath.empty() || !breaksSheetPath.empty() || !presetsSheetPath.empty() )
 	{
-		const bool doPaths = !pathsSheetPath.empty();
+		enum class Sheet
+		{
+			Paths,
+			Breaks,
+			Presets
+		};
+		const Sheet sheetKind = !pathsSheetPath.empty()  ? Sheet::Paths
+		                      : !breaksSheetPath.empty() ? Sheet::Breaks
+		                                                 : Sheet::Presets;
+		const bool doPaths = sheetKind == Sheet::Paths;
 		const int tileW = 480, tileH = 270;
 
 		OutrunPlugin plugin;
-		plugin.SetFloatParameter( PT_ENGINE, doPaths ? 1.0f : 0.0f );
+		if( sheetKind != Sheet::Presets )
+			plugin.SetFloatParameter( PT_ENGINE, doPaths ? 1.0f : 0.0f );
 		plugin.SetPhaseOverride( 0.6f );
 
 		FFGLViewportStruct viewport = {};
@@ -946,21 +963,33 @@ int main( int argc, char** argv )
 		process.HostFBO             = outputFBO;
 
 		SheetResult sheet;
-		const int count = doPaths ? static_cast< int >( Path::Count ) : 6;
+		const int count = sheetKind == Sheet::Paths     ? static_cast< int >( Path::Count )
+		                : sheetKind == Sheet::Breaks    ? 6
+		                                                 : presets::kCount;
 
 		for( int entry = 0; entry < count; ++entry )
 		{
-			if( doPaths )
+			if( sheetKind == Sheet::Paths )
 			{
 				plugin.SetFloatParameter( PT_PATH, static_cast< float >( entry ) );
 				sheet.names.push_back( PathName( static_cast< Path >( entry ) ) );
 			}
-			else
+			else if( sheetKind == Sheet::Breaks )
 			{
 				plugin.SetFloatParameter( PT_BREAK_MODE, static_cast< float >( entry ) );
 				plugin.SetFloatParameter( PT_BREAK_AMOUNT, entry == 0 ? 0.0f : 0.7f );
 				static const char* const kBreakNames[] = { "None", "Echo", "Angular", "Scan", "Flow", "Rays" };
 				sheet.names.push_back( kBreakNames[ entry ] );
+			}
+			else
+			{
+				//Element 0 of the host dropdown is Custom, so preset i is
+				//element i + 1. Going through SetFloatParameter rather than
+				//poking params is the point: it is the path the host takes,
+				//so the sheet also proves applyPreset's copy and its history
+				//invalidation, not just the numbers in the table.
+				plugin.SetFloatParameter( PT_PRESET, static_cast< float >( entry + 1 ) );
+				sheet.names.push_back( presets::kPresets[ entry ].name );
 			}
 
 			//A few frames, not one: the effect's temporal filter needs to
@@ -983,8 +1012,14 @@ int main( int argc, char** argv )
 		}
 
 		plugin.DeInitGL();
-		const int result = writeSheet( doPaths ? pathsSheetPath : breaksSheetPath, sheet, tileW, tileH,
-		                               doPaths ? 4 : 3, doPaths ? "path" : "break mode" );
+		const std::string sheetPath = sheetKind == Sheet::Paths  ? pathsSheetPath
+		                            : sheetKind == Sheet::Breaks ? breaksSheetPath
+		                                                          : presetsSheetPath;
+		const int columns = sheetKind == Sheet::Breaks ? 3 : 4;
+		const char* const what = sheetKind == Sheet::Paths  ? "path"
+		                       : sheetKind == Sheet::Breaks ? "break mode"
+		                                                     : "preset";
+		const int result = writeSheet( sheetPath, sheet, tileW, tileH, columns, what );
 		CGLSetCurrentContext( nullptr );
 		CGLDestroyContext( context );
 		return result;

@@ -156,7 +156,10 @@ can act. Add a parameter, add its context, or the sweep fails honestly.
     source/Controls.{h,cpp}  0..1 host parameters to physical units; the enums.
     source/Palette.{h,cpp}   16 palettes as gradient stops; bakes the table.
     source/Paths.{h,cpp}     the Path enum and names. The maths is in GLSL.
-    source/Presets.h         8 factory presets, plain data, host-agnostic.
+    source/Presets.h         16 factory presets, plain data, host-agnostic:
+                             8 curated around Engine B and the neon sign, then
+                             an Engine A bank covering the traces, break modes,
+                             colour modes and backgrounds those never reach.
     source/PassBuffer.*      FFGLFBO with tinsel's leak fix, three samplings.
     source/PluginEntry.cpp   the registration. See traps.
     source/Diag.*            a log file, for the shader that will not compile.

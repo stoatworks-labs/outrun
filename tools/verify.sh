@@ -67,6 +67,10 @@ step "Checks"
 "$BUILD/outruntest" --palettes
 "$BUILD/outruntest" --paths "$BUILD/paths-sheet.png"
 "$BUILD/outruntest" --breaks "$BUILD/breaks-sheet.png"
+# The factory presets get the same treatment, and need it more: a preset is a
+# table of numbers with nothing to stop two entries drifting onto the same
+# picture, and this is also the only check that drives applyPreset at all.
+"$BUILD/outruntest" --presets "$BUILD/presets-sheet.png"
 
 #---------------------------------------------------------------------------
 step "Dead controls"

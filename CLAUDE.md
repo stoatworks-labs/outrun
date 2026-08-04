@@ -20,6 +20,9 @@ path distance functions.
 - List parameters: `./build/outruntest --list`
 - Contact sheets: `./build/outruntest --paths /tmp/p.png --breaks /tmp/b.png`
   (each also asserts every entry is live and distinct)
+- Factory presets, same assertion: `./build/outruntest --presets /tmp/pre.png`
+  (one tile per entry in `source/Presets.h`, driven through the host's own
+  `SetFloatParameter(PT_PRESET, …)` path, so it covers `applyPreset` too)
 - Set anything by name: `--set "Path=5" --set "Break Amount=0.7"`
 - Put real footage through the real shaders (for the project video):
   `ffmpeg … -f rawvideo -pix_fmt rgba - | ./build/outruntest --pipe --width W --height H [--script cues.txt] | ffmpeg …`
