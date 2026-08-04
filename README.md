@@ -94,6 +94,8 @@ black clip works, and the Background modes decide whether the clip shows.
 
 All builds, checksums and release notes: [github.com/stoatworks-labs/outrun/releases](https://github.com/stoatworks-labs/outrun/releases).
 
+The Windows builds are unsigned, so SmartScreen warns once.
+
 <!-- downloads:end -->
 
 ## Building and testing
