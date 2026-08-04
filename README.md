@@ -18,6 +18,9 @@ run free, locked to Resolume's beat or bar, or driven manually, and the
 spectrum of any routed audio can gate the strokes, drive the breakaway, or be
 the picture itself.
 
+**Video:** [What it does, in 49 seconds](https://www.youtube.com/watch?v=x1Qe6OMdTlQ)
+**Try it live:** [outrun.stoatworks-labs.com](https://outrun.stoatworks-labs.com) — the same GLSL in your browser
+
 ![The perspective grid](docs/grid.png)
 
 ## Install
