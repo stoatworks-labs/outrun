@@ -879,6 +879,19 @@ void OutrunPlugin::applyPreset( int presetIndex )
 		// correctly and merely shows stale knobs.
 		params[ id ] = preset.v[ j ];
 		RaiseParamEvent( id, FF_EVENT_FLAG_VALUE );
+
+		// The same invalidation SetFloatParameter does, for the same reason:
+		// this writes params[] directly, so without it a preset is the one
+		// way to change the engine *without* dropping the edge history. The
+		// symptom is specific and would be blamed on the preset -- pick an
+		// Engine B preset, leave it up while its stale mask rots, then pick
+		// an Engine A one, and the first frames blend the new outlines
+		// against outlines the clip no longer has. Only Engine is reachable
+		// here (the detector parameters are deliberately not in the table),
+		// but the condition is written against all three so that adding one
+		// to the preset table cannot quietly reintroduce this.
+		if( id == PT_ENGINE || id == PT_DETAIL || id == PT_SOURCE )
+			historyValid = false;
 	}
 }
 
