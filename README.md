@@ -1,5 +1,14 @@
 # outrun
 
+> **AI-assisted project.** This codebase was created with [Claude](https://claude.com/claude-code)
+> (Anthropic), directed and reviewed by a human author. The palette lookup is
+> mirrored in C++ and checked against the GLSL that ships. The path and
+> breakaway maths is GPU-only and has no mirror, so it is proven instead by
+> contact sheets that render every path and every break mode and assert each one
+> is live and distinct from its neighbours, and by a control sweep that fails if
+> any parameter turns out to do nothing (see
+> [Building and testing](#building-and-testing)).
+
 Neon synthwave strokes for Resolume Arena/Avenue, as a pair of FFGL plugins:
 
 - **Outrun** (source) generates neon paths from nothing: the perspective grid
