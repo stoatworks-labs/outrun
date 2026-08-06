@@ -77,9 +77,26 @@ jobs:
             # no plugins -- neither failure is visible anywhere else here.
             bin="out/Outrun.bundle/Contents/MacOS/Outrun"
             lipo -archs "$bin"
-            lipo -archs "$bin" | grep -q "x86_64"
-            lipo -archs "$bin" | grep -q "arm64"
-            nm -gU "$bin" | grep -q "_plugMain"
+            # Actions runs `shell: bash` as `bash -eo pipefail`, so `cmd | grep -q X`
+            # FAILS when grep FINDS its match: grep exits at once, the writer takes
+            # SIGPIPE, and pipefail reports the pipeline as failed -- failing the
+            # release on a correct binary. It is output-size dependent, so it bites
+            # the biggest artefact first. Captured and matched with `case` instead.
+            __archs=$( lipo -archs "$bin" )
+            case "$__archs" in
+              *x86_64*) ;;
+              *) echo "expected x86_64, got: $__archs"; exit 1 ;;
+            esac
+            __archs=$( lipo -archs "$bin" )
+            case "$__archs" in
+              *arm64*) ;;
+              *) echo "expected arm64, got: $__archs"; exit 1 ;;
+            esac
+            __symbols=$( nm -gU "$bin" )
+            case "$__symbols" in
+              *_plugMain*) ;;
+              *) echo "expected _plugMain, got: $__symbols"; exit 1 ;;
+            esac
           else
             cp "build/Release/Outrun.dll" "out/Outrun.dll"
           fi
