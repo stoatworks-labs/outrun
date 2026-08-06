@@ -71,6 +71,31 @@ footer a { color: var(--accent); }
 	#stage { min-height: 52vh; }
 	aside { width: auto; border-left: none; border-top: 1px solid var(--hair); overflow: visible; }
 }
+
+/* ---- embed mode -----------------------------------------------------------
+ *
+ * `?embed=1`: the rendered output and nothing else, filling the viewport, so
+ * this page can be a video source -- an OBS browser source, a WebLinked URL --
+ * rather than something a person reads. The same switch the shared demo kit
+ * carries for the other plugins.
+ *
+ * The canvas already sizes itself from its CSS box times devicePixelRatio, so
+ * filling the viewport is all that is needed to render at the raster the
+ * consumer asked for; there is no size= parameter here and none is wanted.
+ *
+ * The banner going away is deliberate and is argued in the kit's README: the
+ * rule it bends protects a reader, and in embed mode the output is a texture in
+ * somebody's mixer. Do not answer it with a watermark burnt into a live output.
+ */
+body[data-embed] { height: 100vh; overflow: hidden; margin: 0; background: #000; }
+body[data-embed] > header,
+body[data-embed] > footer,
+body[data-embed] aside { display: none !important; }
+body[data-embed] main { flex-direction: row; height: 100vh; margin: 0; padding: 0; }
+body[data-embed] #stage {
+  width: 100vw; height: 100vh; min-height: 0; border: 0; border-radius: 0; margin: 0;
+}
+body[data-embed] #view { width: 100%; height: 100%; display: block; }
 </style>
 </head>
 <body>

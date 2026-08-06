@@ -1,3 +1,8 @@
+// `?embed=1` -- output only, for use as a video source (OBS browser source,
+// WebLinked). Set before anything renders so the canvas measures the full
+// viewport on its first sizing pass rather than the boxed layout's.
+const embedParam = new URLSearchParams(location.search).get('embed');
+if (embedParam !== null && embedParam !== '0') document.body.dataset.embed = '';
 /*
     The outrun web demo: the real stroke pipeline running in WebGL2.
 
