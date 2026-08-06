@@ -86,8 +86,8 @@ black clip works, and the Background modes decide whether the clip shows.
 
 | Build | Download | Size |
 | --- | --- | --- |
-| Universal (Apple Silicon + Intel) · .dmg disk image | [`outrun-0.1.0-macos-universal.dmg`](https://github.com/stoatworks-labs/outrun/releases/download/v0.1.0/outrun-0.1.0-macos-universal.dmg) | 220 KB |
-| Universal (Apple Silicon + Intel) · .zip archive | [`outrun-macos-universal.zip`](https://github.com/stoatworks-labs/outrun/releases/latest/download/outrun-macos-universal.zip) | 176 KB |
+| Universal (Apple Silicon + Intel) · .dmg disk image | [`outrun-0.1.0-macos-universal.dmg`](https://github.com/stoatworks-labs/outrun/releases/download/v0.1.0/outrun-0.1.0-macos-universal.dmg) | 240 KB |
+| Universal (Apple Silicon + Intel) · .zip archive | [`outrun-macos-universal.zip`](https://github.com/stoatworks-labs/outrun/releases/latest/download/outrun-macos-universal.zip) | 194 KB |
 
 </details>
 
@@ -103,7 +103,7 @@ black clip works, and the Background modes decide whether the clip shows.
 
 All builds, checksums and release notes: [github.com/stoatworks-labs/outrun/releases](https://github.com/stoatworks-labs/outrun/releases).
 
-The Windows builds are unsigned, so SmartScreen warns once.
+macOS builds are signed and notarised and open normally. The Windows builds are unsigned, so SmartScreen warns once.
 
 <!-- downloads:end -->
 
