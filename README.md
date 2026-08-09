@@ -39,8 +39,10 @@ then restart Resolume:
 
     ~/Documents/Resolume Arena/Extra Effects      (or "Resolume Avenue")
 
-On macOS the bundles are unsigned; see `docs/UNSIGNED.md` if Gatekeeper
-objects, or build from source:
+The released macOS builds are Developer ID-signed and notarised, so they load
+without a Gatekeeper step; the Windows builds are unsigned and SmartScreen warns
+once — `docs/UNSIGNED.md` covers that and a bundle you build yourself. Or build
+from source:
 
     git clone --recursive https://github.com/stoatworks-labs/outrun
     cd outrun
