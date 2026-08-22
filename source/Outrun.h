@@ -8,6 +8,9 @@
 
 #include <FFGLSDK.h>
 
+// After FFGLSDK.h, which is where FFUInt32 comes from.
+#include "StoatworksAboutParams.h"
+
 #include <array>
 
 /**
@@ -48,9 +51,34 @@ public:
 	FFResult DeInitGL() override;
 
 	FFResult SetFloatParameter( unsigned int index, float value ) override;
+
+	char* GetTextParameter( unsigned int index ) override;
+
+	/// Declared only so the About line can accept its own default.
+	/// instantiateGL pushes every declared default back through the setters on
+	/// a fresh instance and deletes the instance if one fails, and
+	/// CFFGLPlugin's SetTextParameter is a stub that returns exactly that
+	/// failure -- so without this override no real host can load the plugin,
+	/// while every offline harness here carries on passing.
+	FFResult SetTextParameter( unsigned int index, const char* value ) override;
 	float GetFloatParameter( unsigned int index ) override;
 
 	FFResult SetTime( double time ) override;
+
+	//---------------------------------------------------------------------
+	// Clock test hooks.
+	//
+	// The offline harness DECLARES its unit rather than leaving UpdateClock to
+	// infer one. A single absolute time handed over in one frame is genuinely
+	// ambiguous -- 2.0 is two seconds or two milliseconds and nothing in it
+	// says which -- so inference is only possible against a live host's frame
+	// deltas. An implicit unit is exactly what caused the bug these exist to
+	// keep fixed.
+	//---------------------------------------------------------------------
+	void SetClockScaleForTest( double scale );
+	void TickClockForTest();
+	double ClockScaleForTest() const;
+	double HostSecondsForTest() const;
 
 	/// Render one frame into whatever is currently bound, at `width` x
 	/// `height`. Exposed for the offline harness, which drives this class
@@ -96,6 +124,9 @@ private:
 	/// integrates the rate (moving Speed must not rescale the history); Beat
 	/// and Bar recover an absolute phase from the host's transport so a cycle
 	/// boundary lands on the grid; Manual leaves the Phase slider in charge.
+	/// Decide what unit the host's clock is in, and advance `hostSeconds`.
+	void UpdateClock();
+
 	float AdvancePhase();
 
 	void UpdateAudio();
@@ -130,6 +161,22 @@ private:
 	double hostTime     = -1.0;
 	double lastHostTime = -1.0;
 	double phase        = 0.0;
+
+	//---------------------------------------------------------------------
+	// Host clock units.
+	//
+	// FFGL never says what unit SetTime is in and hosts disagree: Resolume
+	// sends MILLISECONDS, the offline harness sends seconds. UpdateClock
+	// calibrates against a real clock and publishes `hostSeconds`, which is
+	// the only time anything else here should read.
+	//---------------------------------------------------------------------
+	double hostSeconds  = 0.0;
+	double clockScale   = 0.0;///< 0 until decided; then 1.0 or 0.001
+	double lastRawTime  = -1.0;
+	double lastWallTime = -1.0;
+	double wallStart    = -1.0;
+	int secondsVotes    = 0;
+	int millisVotes     = 0;
 
 	bool phasePinned  = false;
 	float pinnedPhase = 0.0f;

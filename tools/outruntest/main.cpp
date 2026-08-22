@@ -54,6 +54,7 @@
 #include <cmath>
 #include <cstdio>
 #include <chrono>
+#include <thread>
 #include <cstring>
 #include <fstream>
 #include <map>
@@ -444,10 +445,110 @@ bool applySetting( OutrunPlugin& plugin, const std::string& assignment, std::str
 /// neighbouring bands differ. Without it Audio Level and Audio Break
 /// measurably do nothing offline and the sweep would report them dead.
 //---------------------------------------------------------------------------
+//---------------------------------------------------------------------------
+/// Prove the host clock lands in seconds whatever unit the host speaks.
+///
+/// This is the gap that let a thousand-times-fast bug ship: every harness in
+/// the fleet drove SetTime in SECONDS, Resolume drives it in MILLISECONDS, so
+/// the path the users actually run was the one path nothing exercised. The
+/// deltas below are fed in real time -- the calibration measures host time
+/// against a steady_clock, so a test that raced through them would measure
+/// nothing.
+//---------------------------------------------------------------------------
+int runClockTest()
+{
+	struct Case
+	{
+		const char* name;
+		double perFrame;///< what the host adds per frame
+		double expected;///< the scale it should settle on
+	};
+	const Case cases[] = {
+		{ "milliseconds (Resolume)", 20.0, 0.001 },
+		{ "seconds (harness)", 0.02, 1.0 },
+	};
+
+	int failures = 0;
+
+	for( const Case& c : cases )
+	{
+		OutrunPlugin plugin;
+		double host = 0.0;
+
+		// Twelve frames at a real ~20 ms apart: comfortably more than the
+		// four agreeing frames the calibration asks for, and slow enough
+		// that the wall clock has something to measure.
+		for( int frame = 0; frame < 12; ++frame )
+		{
+			std::this_thread::sleep_for( std::chrono::milliseconds( 20 ) );
+			host += c.perFrame;
+			plugin.SetTime( host );
+			plugin.TickClockForTest();
+		}
+
+		const double scale = plugin.ClockScaleForTest();
+		const double secs  = plugin.HostSecondsForTest();
+
+		// Twelve frames of 20 ms is about 0.24 s of programme time whichever
+		// unit the host counts in. Loose bounds: the point is that it is not
+		// out by a factor of a thousand.
+		const bool scaleOk = std::abs( scale - c.expected ) < 1e-9;
+		const bool timeOk  = secs > 0.05 && secs < 1.0;
+
+		std::printf( "clock %-26s scale=%-6g seconds=%-8.4f %s\n",
+		             c.name, scale, secs,
+		             ( scaleOk && timeOk ) ? "ok" : "FAILED" );
+
+		if( !scaleOk )
+		{
+			std::fprintf( stderr, "  expected scale %g, got %g\n", c.expected, scale );
+			++failures;
+		}
+		if( !timeOk )
+		{
+			std::fprintf( stderr, "  %.4f seconds is not a plausible 0.24s of clock\n", secs );
+			++failures;
+		}
+	}
+
+	// And the arithmetic itself: a declared millisecond host and a declared
+	// seconds host must put the clock in the same place for the same instant.
+	{
+		OutrunPlugin ms;
+		ms.SetClockScaleForTest( 0.001 );
+		ms.SetTime( 2500.0 );
+		ms.TickClockForTest();
+
+		OutrunPlugin sec;
+		sec.SetClockScaleForTest( 1.0 );
+		sec.SetTime( 2.5 );
+		sec.TickClockForTest();
+
+		const double a  = ms.HostSecondsForTest();
+		const double b  = sec.HostSecondsForTest();
+		const bool same = std::abs( a - b ) < 1e-9 && std::abs( a - 2.5 ) < 1e-9;
+		std::printf( "clock %-26s ms=%.4f seconds=%.4f %s\n",
+		             "2500ms == 2.5s", a, b, same ? "ok" : "FAILED" );
+		if( !same )
+			++failures;
+	}
+
+	std::printf( "%s\n", failures == 0 ? "clock: all ok" : "clock: FAILURES" );
+	return failures == 0 ? 0 : 1;
+}
+
 void driveClock( OutrunPlugin& plugin, double seconds )
 {
 	constexpr double kBpm       = 120.0;
 	constexpr double barSeconds = 240.0 / kBpm;
+
+	// Say what unit we are speaking. The harness renders frames as fast as the
+	// GPU allows, so the plugin's own calibration -- which measures host time
+	// against real elapsed time -- has nothing to measure here. Declaring it
+	// is not a workaround for the test's benefit: an absolute time in a single
+	// frame really is ambiguous, and leaving the unit implicit is what let the
+	// millisecond bug through in the first place.
+	plugin.SetClockScaleForTest( 1.0 );
 	plugin.SetTime( seconds );
 	plugin.SetBeatInfo( static_cast< float >( kBpm ),
 	                    static_cast< float >( std::fmod( seconds, barSeconds ) / barSeconds ) );
@@ -765,6 +866,7 @@ int main( int argc, char** argv )
 	double timeSeconds = -1.0;
 	float noise      = 0.0f;
 	bool wantList    = false;
+	bool wantClock   = false;
 	bool wantPalettes = false;
 	bool wantPipe    = false;
 	bool havePhase   = false;
@@ -788,6 +890,7 @@ int main( int argc, char** argv )
 				"  --size WxH            both at once\n"
 				"  --frames N            frames to render before reading back (default 30)\n"
 				"  --time T              spread the frames over T seconds of clock instead\n"
+				"  --clock               self-test the host clock unit calibration\n"
 				"  --fps N               synthetic frame rate driving the animation (default 60)\n"
 				"  --phase F             pin the driven phase (the Phase slider stays live)\n"
 				"  --noise F             per-frame noise on the card, 0..1. What Stability is for.\n"
@@ -851,6 +954,8 @@ int main( int argc, char** argv )
 			settings.push_back( argv[ ++i ] );
 		else if( argument == "--list" )
 			wantList = true;
+		else if( argument == "--clock" )
+			wantClock = true;
 		else if( argument == "--palettes" )
 			wantPalettes = true;
 		else if( argument == "--pipe" )
@@ -863,6 +968,11 @@ int main( int argc, char** argv )
 			return 2;
 		}
 	}
+
+	// Before any GL: the clock has nothing to do with the GPU, and a self-test
+	// that needed a context would not run in CI.
+	if( wantClock )
+		return runClockTest();
 
 	bool wantBench = false;
 	settings.erase( std::remove_if( settings.begin(), settings.end(),
