@@ -1,7 +1,7 @@
 {
-  "name": "tinsel",
+  "name": "outrun",
   "version-string": "0.1.0",
-  "description": "Dependencies for building the Tinsel FFGL plugin. GLEW is only needed on Windows; macOS uses the system OpenGL framework.",
+  "description": "Dependencies for building the Outrun FFGL plugin. GLEW is only needed on Windows; macOS uses the system OpenGL framework.",
   "dependencies": [
     {
       "name": "glew",
