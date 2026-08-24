@@ -175,3 +175,10 @@ mid-show engine switch never allocates mid-chain. The stabilise buffer's
 `.gba` carries (x·mask, y·mask, mask), so the artwork centroid is one
 `textureLod` off the top of its mip chain. `historyValid` resets when the
 engine changes, or A would blend against a mask B left to rot.
+
+## Notes
+
+`docs/NOTES.md` carries this repo's working notes — current status, decisions
+already made, and the traps that have actually bitten. Read it before changing
+anything non-obvious. Cross-cutting fleet knowledge lives in
+[fleet-notes](https://github.com/stoatworks-labs/fleet-notes).
