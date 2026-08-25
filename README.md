@@ -81,14 +81,14 @@ black clip works, and the Background modes decide whether the clip shows.
 
 ## Download
 
-**[v1.0.2](https://github.com/stoatworks-labs/outrun/releases/tag/v1.0.2)** — prebuilt for macOS and Windows. Pick your platform:
+**[v1.0.3](https://github.com/stoatworks-labs/outrun/releases/tag/v1.0.3)** — prebuilt for macOS and Windows. Pick your platform:
 
 <details>
 <summary><b>macOS</b> — Universal (Apple Silicon + Intel)</summary>
 
 | Build | Download | Size |
 | --- | --- | --- |
-| Universal (Apple Silicon + Intel) · .dmg disk image | [`outrun-1.0.2-macos-universal.dmg`](https://github.com/stoatworks-labs/outrun/releases/download/v1.0.2/outrun-1.0.2-macos-universal.dmg) | 475 KB |
+| Universal (Apple Silicon + Intel) · .dmg disk image | [`outrun-1.0.3-macos-universal.dmg`](https://github.com/stoatworks-labs/outrun/releases/download/v1.0.3/outrun-1.0.3-macos-universal.dmg) | 239 KB |
 | Universal (Apple Silicon + Intel) · .zip archive | [`outrun-macos-universal.zip`](https://github.com/stoatworks-labs/outrun/releases/latest/download/outrun-macos-universal.zip) | 201 KB |
 
 </details>
@@ -98,7 +98,7 @@ black clip works, and the Background modes decide whether the clip shows.
 
 | Build | Download | Size |
 | --- | --- | --- |
-| x64 · .exe installer | [`outrun-1.0.2-windows-x86_64-setup.exe`](https://github.com/stoatworks-labs/outrun/releases/download/v1.0.2/outrun-1.0.2-windows-x86_64-setup.exe) | 227 KB |
+| x64 · .exe installer | [`outrun-1.0.3-windows-x86_64-setup.exe`](https://github.com/stoatworks-labs/outrun/releases/download/v1.0.3/outrun-1.0.3-windows-x86_64-setup.exe) | 227 KB |
 | x64 · .zip archive | [`outrun-windows-x86_64.zip`](https://github.com/stoatworks-labs/outrun/releases/latest/download/outrun-windows-x86_64.zip) | 123 KB |
 
 </details>
