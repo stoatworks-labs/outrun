@@ -7,7 +7,7 @@ person and dated by when each thing was learned — that date is usually the use
 Cross-cutting notes that are not specific to this repo live in
 [fleet-notes](https://github.com/stoatworks-labs/fleet-notes).
 
-*outrun — neon synthwave strokes as twin FFGL plugins (source + breakaway edge-tracing effect). PUBLIC MIT, verify green*
+*outrun — neon synthwave strokes as ONE FFGL effect plugin with an Engine dropdown (A traces the clip, B generates paths). PUBLIC MIT, verify green*
 
 **outrun** (`~/Projects/outrun`, PUBLIC MIT, `stoatworks-labs/outrun`) — neon
 synthwave strokes as **ONE** FFGL effect plugin (`OU01`) with an Engine

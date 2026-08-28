@@ -9,17 +9,20 @@
 > any parameter turns out to do nothing (see
 > [Building and testing](#building-and-testing)).
 
-Neon synthwave strokes for Resolume Arena/Avenue, as a pair of FFGL plugins:
+Neon synthwave strokes for Resolume Arena/Avenue, as **one** FFGL effect plugin
+(`OU01`) with an **Engine** dropdown that picks between two of them:
 
-- **Outrun** (source) generates neon paths from nothing: the perspective grid
-  with the striped sun, tunnel rings, hex lattices, circuit traces, a city
-  skyline over folded mountains, a spinning star, a Lissajous figure -- or the
-  routed audio as a mirrored oscilloscope trace.
-- **Outrun Trace** (effect) finds the outlines in whatever is on the layer and
+- **Engine A — Trace** finds the outlines in whatever is on the layer and
   draws them as continuous glowing neon tubes -- and then lets them **break
   away** from the real geometry: echoes drifting outward, outlines snapped to
   45° technical linework, scanline glitches, a flow field, comet rays. Break
   Amount morphs from the faithful outline to the synthetic pattern.
+- **Engine B — Paths** generates neon paths from nothing: the perspective grid
+  with the striped sun, tunnel rings, hex lattices, circuit traces, a city
+  skyline over folded mountains, a spinning star, a Lissajous figure -- or the
+  routed audio as a mirrored oscilloscope trace. It is an effect either way, so
+  Engine B needs a clip under it; the Background modes decide whether that clip
+  shows.
 
 Strokes are coloured from sixteen authored synthwave palettes, from two
 swatches, or from the clip's own colours along its own outline. Everything can

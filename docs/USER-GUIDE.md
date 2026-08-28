@@ -1,13 +1,13 @@
 # outrun user guide
 
 outrun draws **neon synthwave strokes** for [Resolume](https://resolume.com) Arena and Avenue, as
-a pair of FFGL plugins.
+one FFGL effect plugin with an **Engine** dropdown.
 
-- **Outrun** (a source) generates neon paths from nothing: the perspective grid with its striped
+- **Engine A — Trace** finds the outlines in whatever is on the layer and draws them as
+  continuous glowing neon tubes — and then lets them **break away** from the real geometry.
+- **Engine B — Paths** generates neon paths from nothing: the perspective grid with its striped
   sun, tunnel rings, hex lattices, circuit traces, a city skyline over folded mountains, a spinning
   star, a Lissajous figure — or the routed audio as a mirrored oscilloscope trace.
-- **Outrun Trace** (an effect) finds the outlines in whatever is on the layer and draws them as
-  continuous glowing neon tubes — and then lets them **break away** from the real geometry.
 
 ![The perspective grid](grid.png)
 
