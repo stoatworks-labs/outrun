@@ -395,6 +395,112 @@ const char* kindName( unsigned int type )
 	}
 }
 
+
+/**
+	Selecting a preset must survive the host restating what it already held.
+
+	**The host owns parameter state.** Resolume does not consume the value
+	events applyPreset raises: it carries on pushing the values it held BEFORE
+	the preset was chosen. Written straight into params[] those overwrite the
+	preset, and because they differ from what params[] now holds they also read
+	as an operator edit and drop the dropdown back to Custom. The symptom in the
+	host is a preset that cannot be selected at all — compander's notes record
+	it as firing "on the host's own echo, instantly, every time".
+
+	Nothing offline could see this. The --presets contact sheet sets the
+	parameter and renders, and a render drives no echo; outrun's own NOTES say
+	the plugin has never been loaded in real Resolume. So this replays the echo
+	explicitly: snapshot every parameter, pick a preset, then push the snapshot
+	back through SetFloatParameter exactly as the host would.
+
+	Returns the number of failures.
+*/
+int checkPresetsSurviveTheHostEcho()
+{
+	int failures = 0;
+
+	for( int preset = 1; preset <= presets::kCount; ++preset )
+	{
+		OutrunPlugin plugin;
+
+		// The host's opening position, before any preset is chosen. Pushed in
+		// first so the plugin has seen this parameter traffic, which is what a
+		// host does on load.
+		std::vector< float > opening( PT_COUNT, 0.0f );
+		for( unsigned int i = 0; i < PT_ABOUT_TEXT; ++i )
+		{
+			opening[ i ] = plugin.GetFloatParameter( i );
+			plugin.SetFloatParameter( i, opening[ i ] );
+		}
+
+		plugin.SetFloatParameter( PT_PRESET, static_cast< float >( preset ) );
+
+		std::vector< float > afterPreset( PT_COUNT, 0.0f );
+		for( unsigned int i = 0; i < PT_ABOUT_TEXT; ++i )
+			afterPreset[ i ] = plugin.GetFloatParameter( i );
+
+		// The echo: the host restating everything it believed a moment ago,
+		// twice, because a host that pushes per frame does it more than once.
+		for( int round = 0; round < 2; ++round )
+			for( unsigned int i = 0; i < PT_ABOUT_TEXT; ++i )
+				if( i != PT_PRESET )
+					plugin.SetFloatParameter( i, opening[ i ] );
+
+		const int stillActive =
+			static_cast< int >( std::lround( plugin.GetFloatParameter( PT_PRESET ) ) );
+
+		if( stillActive != preset )
+		{
+			std::printf( "FAIL  preset %d dropped to %d on the host's echo\n", preset, stillActive );
+			++failures;
+			continue;
+		}
+
+		int moved = 0;
+		for( unsigned int i = 0; i < PT_ABOUT_TEXT; ++i )
+		{
+			if( i == PT_PRESET )
+				continue;
+			if( std::fabs( plugin.GetFloatParameter( i ) - afterPreset[ i ] ) > 1e-4f )
+				++moved;
+		}
+
+		if( moved != 0 )
+		{
+			std::printf( "FAIL  preset %d: the echo overwrote %d parameter(s)\n", preset, moved );
+			++failures;
+		}
+	}
+
+	if( failures == 0 )
+		std::printf( "ok   %d presets survive the host restating its own values\n", presets::kCount );
+
+	// An operator genuinely moving a covered slider must STILL drop to Custom —
+	// the guard must not have turned the fallback off altogether.
+	{
+		OutrunPlugin plugin;
+		for( unsigned int i = 0; i < PT_ABOUT_TEXT; ++i )
+			plugin.SetFloatParameter( i, plugin.GetFloatParameter( i ) );
+
+		plugin.SetFloatParameter( PT_PRESET, 1.0f );
+
+		const float held = plugin.GetFloatParameter( PT_WIDTH );
+		plugin.SetFloatParameter( PT_WIDTH, held > 0.5f ? held - 0.4f : held + 0.4f );
+
+		if( static_cast< int >( std::lround( plugin.GetFloatParameter( PT_PRESET ) ) ) != 0 )
+		{
+			std::printf( "FAIL  moving a covered slider no longer drops the preset to Custom\n" );
+			++failures;
+		}
+		else
+		{
+			std::printf( "ok   an operator edit still drops the preset to Custom\n" );
+		}
+	}
+
+	return failures;
+}
+
 std::vector< NamedParameter > listParameters( OutrunPlugin& plugin )
 {
 	std::vector< NamedParameter > list;
@@ -858,6 +964,7 @@ int main( int argc, char** argv )
 	std::string pathsSheetPath;
 	std::string breaksSheetPath;
 	std::string presetsSheetPath;
+	bool checkPresetEcho = false;
 	std::string scriptPath;
 	int width        = 1280;
 	int height       = 720;
@@ -901,6 +1008,7 @@ int main( int argc, char** argv )
 				"  --paths PATH          contact sheet of every path, checked live and distinct\n"
 				"  --breaks PATH         contact sheet of every break mode, likewise\n"
 				"  --presets PATH        contact sheet of every factory preset, likewise\n"
+				"  --preset-echo         a preset survives the host restating its own values\n"
 				"  --bench               time a frame at 720p through 4K\n"
 				"  --pipe                raw RGBA frames on stdin, raw RGBA frames on stdout\n"
 				"  --script PATH         parameter cues for --pipe: 'frame Name Value'\n"
@@ -919,6 +1027,8 @@ int main( int argc, char** argv )
 			breaksSheetPath = argv[ ++i ];
 		else if( argument == "--presets" && hasNext )
 			presetsSheetPath = argv[ ++i ];
+		else if( argument == "--preset-echo" )
+			checkPresetEcho = true;
 		else if( argument == "--script" && hasNext )
 			scriptPath = argv[ ++i ];
 		else if( argument == "--width" && hasNext )
@@ -1028,6 +1138,9 @@ int main( int argc, char** argv )
 	//The contact sheets pick their own engine: paths on Engine B, breakaway
 	//on Engine A over the card. Presets pick neither -- each one carries its
 	//own engine, which is most of what a preset is for.
+	if( checkPresetEcho )
+		return checkPresetsSurviveTheHostEcho() == 0 ? 0 : 1;
+
 	if( !pathsSheetPath.empty() || !breaksSheetPath.empty() || !presetsSheetPath.empty() )
 	{
 		enum class Sheet

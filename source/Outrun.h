@@ -110,6 +110,31 @@ private:
 	/// the host re-reads the sliders. `presetIndex` is 1-based; 0 is Custom.
 	void applyPreset( int presetIndex );
 
+	/// The value `presetIndex` holds for `id`, or -1 if it holds none.
+	float presetValue( int presetIndex, unsigned int id ) const;
+
+	/// Record the host's opening position, once, before any preset can run.
+	void seedHostValues();
+
+	/**
+		Is this the host restating a value it already held, rather than the
+		operator moving something?
+
+		**The host owns parameter state.** Resolume does not consume value
+		events: after applyPreset raises them it carries on restating the values
+		it held BEFORE the preset. Written straight into params[] those
+		restatements overwrite the preset, and — because they differ from what
+		params[] now holds — they also read as an operator edit and drop the
+		dropdown back to Custom. The symptom is a preset that cannot be
+		selected at all.
+
+		Ported from tinsel a36e133, where this was diagnosed and fixed; the same
+		guard is in compander and astronaught. outrun's own NOTES say the plugin
+		has never been loaded in real Resolume, and the offline --presets sheet
+		drives no echo, so nothing here could ever have caught it.
+	*/
+	bool hostIsRestatingItself( unsigned int index, float value );
+
 	/// Bake the palettes and upload them. Once, at InitGL: the table does not
 	/// depend on any parameter, which is the point of keeping the two
 	/// colour-driven palettes out of it.
@@ -200,6 +225,11 @@ private:
 	bool historyValid = false;
 
 	float params[ PT_COUNT ] = {};
+
+	/// The last value the host pushed for each parameter — what makes a
+	/// restatement distinguishable from an edit. See hostIsRestatingItself.
+	float hostValues[ PT_COUNT ] = {};
+	bool hostValuesSeeded        = false;
 };
 
 } // namespace outrun

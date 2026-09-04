@@ -78,6 +78,11 @@ step "Checks"
 # table of numbers with nothing to stop two entries drifting onto the same
 # picture, and this is also the only check that drives applyPreset at all.
 "$BUILD/outruntest" --presets "$BUILD/presets-sheet.png"
+# And that a preset SURVIVES being chosen. The sheet above renders, and a
+# render drives no parameter echo -- so it cannot see the host restating the
+# values it held before the preset, which is what used to drop every preset
+# straight back to Custom in real Resolume. See hostIsRestatingItself.
+"$BUILD/outruntest" --preset-echo
 
 #---------------------------------------------------------------------------
 step "Dead controls"
