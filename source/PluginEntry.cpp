@@ -23,7 +23,7 @@ class OutrunEffect : public outrun::OutrunPlugin
 static CFFGLPluginInfo PluginInfo(
 	PluginFactory< OutrunEffect >,                        // Create method
 	"OU01",                                               // Plugin unique ID of maximum length 4
-	"Outrun",                                             // Plugin name
+	"SW Outrun",                                          // Plugin name
 	2,                                                    // API major version number
 	1,                                                    // API minor version number
 	0,                                                    // Plugin major version number
