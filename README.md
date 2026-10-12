@@ -3,24 +3,25 @@
 > **AI-assisted project.** This codebase was created with [Claude](https://claude.com/claude-code)
 > (Anthropic), directed and reviewed by a human author. The palette lookup is
 > mirrored in C++ and checked against the GLSL that ships. The path and
-> breakaway maths is GPU-only and has no mirror, so it is proven instead by
-> contact sheets that render every path and every break mode and assert each one
-> is live and distinct from its neighbours, and by a control sweep that fails if
-> any parameter turns out to do nothing (see
+> breakaway maths only exists on the GPU, with no mirror, so it's proven another
+> way: contact sheets render every path and every break mode and assert that each
+> one is live and different from its neighbours, and a control sweep fails if any
+> parameter turns out to do nothing (see
 > [Building and testing](#building-and-testing)).
 
-Neon synthwave strokes for Resolume Arena/Avenue, as **one** FFGL effect plugin
-(`OU01`) with an **Engine** dropdown that picks between two of them:
+Neon synthwave strokes for Resolume Arena and Avenue, for whenever the brief
+says "more eighties". It's **one** FFGL effect plugin (`OU01`) with an
+**Engine** dropdown that picks between two engines:
 
 - **Engine A — Trace** finds the outlines in whatever is on the layer and
-  draws them as continuous glowing neon tubes -- and then lets them **break
-  away** from the real geometry: echoes drifting outward, outlines snapped to
+  draws them as continuous glowing neon tubes, then lets them **break
+  away** from the actual geometry: echoes drifting outward, outlines snapped to
   45° technical linework, scanline glitches, a flow field, comet rays. Break
   Amount morphs from the faithful outline to the synthetic pattern.
 - **Engine B — Paths** generates neon paths from nothing: the perspective grid
   with the striped sun, tunnel rings, hex lattices, circuit traces, a city
-  skyline over folded mountains, a spinning star, a Lissajous figure -- or the
-  routed audio as a mirrored oscilloscope trace. It is an effect either way, so
+  skyline over folded mountains, a spinning star, a Lissajous figure, or the
+  routed audio as a mirrored oscilloscope trace. It's an effect either way, so
   Engine B needs a clip under it; the Background modes decide whether that clip
   shows.
 
@@ -31,7 +32,7 @@ spectrum of any routed audio can gate the strokes, drive the breakaway, or be
 the picture itself.
 
 **Video:** [What it does, in 49 seconds](https://www.youtube.com/watch?v=x1Qe6OMdTlQ)
-**Try it live:** [outrun.stoatworks-labs.com](https://outrun.stoatworks-labs.com) — the same GLSL in your browser
+**Try it live:** [outrun.stoatworks-labs.com](https://outrun.stoatworks-labs.com), the same GLSL in your browser
 
 ![The perspective grid](docs/grid.png)
 
@@ -44,7 +45,7 @@ then restart Resolume:
 
 The released macOS builds are Developer ID-signed and notarised, so they load
 without a Gatekeeper step; the Windows builds are unsigned and SmartScreen warns
-once — `docs/UNSIGNED.md` covers that and a bundle you build yourself. Or build
+once (`docs/UNSIGNED.md` covers that, and a bundle you build yourself). Or build
 from source:
 
     git clone --recursive https://github.com/stoatworks-labs/outrun
@@ -53,8 +54,8 @@ from source:
     cmake --build build
     cmake --install build
 
-"Outrun" appears under Effects. Engine B needs any clip under it -- a solid
-black clip works, and the Background modes decide whether the clip shows.
+"Outrun" appears under Effects. Engine B needs a clip under it, any clip: a solid
+black one works, and the Background modes decide whether the clip shows.
 
 ## The controls, briefly
 
@@ -67,7 +68,7 @@ black clip works, and the Background modes decide whether the clip shows.
   outline.
 - **Engine B — Paths**: which generator, its size, its density, and where
   the horizon sits.
-- **Stroke**: tube `Width` in pixels, and `Core` -- how much of the tube
+- **Stroke**: tube `Width` in pixels, and `Core`, how much of the tube
   saturates to white.
 - **Breakaway**: the mode, the amount (0 is the faithful geometry), a
   per-mode spread, and a per-copy palette shift.
@@ -117,7 +118,7 @@ macOS builds are signed and notarised and open normally. The Windows builds are 
 C++17 + GLSL 4.10, CMake, FFGL 2.1 (SDK vendored as a submodule). macOS
 builds are universal (arm64 + x86_64); Windows needs GLEW via vcpkg.
 
-The offline harness renders the real plugin classes headlessly:
+The offline harness renders the plugin's own classes, headless:
 
     ./build/outruntest --out /tmp/frame.png            # Engine A over a test card
     ./build/outruntest --set "Engine=1" --out ...      # Engine B, the grid
