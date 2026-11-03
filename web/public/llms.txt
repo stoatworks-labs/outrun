@@ -1,0 +1,16 @@
+# Outrun
+
+> Breakaway neon strokes for Resolume
+
+Neon synthwave strokes as one FFGL effect with two engines. One traces the clip's
+outlines as glowing tubes that can break away from the geometry underneath. The other
+makes synthwave paths from scratch: the perspective grid with the striped sun, tunnels,
+circuits, skylines, and the routed audio as an oscilloscope.
+
+This page, https://outrun.stoatworks-labs.com/: The Outrun FFGL plugin's stroke pipeline running live in WebGL2: trace your webcam's outlines in neon, or generate synthwave grids, tunnels and circuits.
+
+## Links
+
+- [Project page](https://stoatworks-labs.com/software/outrun/): downloads and the video
+- [User guide](https://stoatworks-labs.com/software/outrun/guide/)
+- [Source on GitHub](https://github.com/stoatworks-labs/outrun)

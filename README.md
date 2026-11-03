@@ -34,6 +34,8 @@ the picture itself.
 **Video:** [What it does, in 49 seconds](https://www.youtube.com/watch?v=x1Qe6OMdTlQ)
 **Try it live:** [outrun.stoatworks-labs.com](https://outrun.stoatworks-labs.com), the same GLSL in your browser
 
+The [project page](https://stoatworks-labs.com/software/outrun/) has the downloads, the [user guide](https://stoatworks-labs.com/software/outrun/guide/) and the video.
+
 ![The perspective grid](docs/grid.png)
 
 ## Install

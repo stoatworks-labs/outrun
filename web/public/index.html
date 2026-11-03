@@ -5,6 +5,48 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Outrun — neon synthwave strokes, live in the browser</title>
 <meta name="description" content="The Outrun FFGL plugin's stroke pipeline running live in WebGL2: trace your webcam's outlines in neon, or generate synthwave grids, tunnels and circuits.">
+<link rel="canonical" href="https://outrun.stoatworks-labs.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Stoatworks Labs">
+<meta property="og:title" content="Outrun — neon synthwave strokes, live in the browser">
+<meta property="og:description" content="The Outrun FFGL plugin's stroke pipeline running live in WebGL2: trace your webcam's outlines in neon, or generate synthwave grids, tunnels and circuits.">
+<meta property="og:url" content="https://outrun.stoatworks-labs.com/">
+<meta property="og:image" content="https://stoatworks-labs.com/thumbs/outrun.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="720">
+<meta property="og:image:alt" content="Outrun">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "@id": "https://outrun.stoatworks-labs.com#app",
+  "name": "Outrun",
+  "url": "https://outrun.stoatworks-labs.com",
+  "description": "The Outrun FFGL plugin's stroke pipeline running live in WebGL2: trace your webcam's outlines in neon, or generate synthwave grids, tunnels and circuits.",
+  "applicationCategory": "MultimediaApplication",
+  "operatingSystem": "Any (runs in a web browser)",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "GBP"
+  },
+  "author": {
+    "@id": "https://stoatworks-labs.com/#organization",
+    "@type": "Organization",
+    "name": "Stoatworks Labs",
+    "url": "https://stoatworks-labs.com/"
+  },
+  "publisher": {
+    "@id": "https://stoatworks-labs.com/#organization"
+  },
+  "sameAs": [
+    "https://stoatworks-labs.com/software/outrun/",
+    "https://github.com/stoatworks-labs/outrun"
+  ]
+}
+</script>
 <style>
 :root {
 	--navy: #0e2942; --navy-2: #0a1f33; --paper: #fafaf8;
@@ -104,6 +146,21 @@ body[data-embed] #view { width: 100%; height: 100%; display: block; }
 	<h1>Outrun</h1>
 	<a href="https://github.com/stoatworks-labs/outrun">Get the Resolume plugin →</a>
 </header>
+<noscript>
+<p>
+  Neon synthwave strokes as one FFGL effect with two engines. One traces the
+  clip's outlines as glowing tubes that can break away from the geometry
+  underneath. The other makes synthwave paths from scratch: the perspective
+  grid with the striped sun, tunnels, circuits, skylines, and the routed audio
+  as an oscilloscope.
+</p>
+<p>This page needs JavaScript and WebGL2.</p>
+<ul>
+  <li><a href="https://stoatworks-labs.com/software/outrun/">Project page and downloads</a></li>
+  <li><a href="https://stoatworks-labs.com/software/outrun/guide/">User guide</a></li>
+  <li><a href="https://github.com/stoatworks-labs/outrun">Source on GitHub</a></li>
+</ul>
+</noscript>
 <main>
 	<div id="stage">
 		<canvas id="view"></canvas>
@@ -242,7 +299,8 @@ body[data-embed] #view { width: 100%; height: 100%; display: block; }
 	This is the real algorithm — the same GLSL the
 	<a href="https://github.com/stoatworks-labs/outrun">Outrun FFGL plugin</a> runs in
 	Resolume, ported to WebGL2. Click once to start the sound. Nothing you type,
-	film or play leaves this page.
+	film or play leaves this page. Downloads and the user guide are on its
+	<a href="https://stoatworks-labs.com/software/outrun/">project page</a>.
 </footer>
 <script type="module" src="app.js"></script>
 </body>
